@@ -1,0 +1,17 @@
+# wallpaper
+
+## Description
+
+I used to have a nice wallpaper a long time ago, but I just can't remember it
+
+## Flag
+
+The input to validate the crackme is `1012321103210033011233322110103321001`. Thus,
+the flag is `CMO{1012321103210033011233322110103321001}`
+
+```
+stan@callisto:/tmp/ctf-2026-challenges/wallpaper$ ./wallpaper 
+enter password
+1012321103210033011233322110103321001
+good job, validate with CMO{your_input}
+```

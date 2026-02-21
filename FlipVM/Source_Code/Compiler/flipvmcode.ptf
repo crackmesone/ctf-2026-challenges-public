@@ -1,0 +1,1843 @@
+{ ANSI_BACKGROUND   0x6d39353b31353b38333b323b38345b1b }
+{ ANSI_ORANGE       0x6d31333b34373b3734313b323b38335b1b }
+{ ANSI_YELLOW       0x6d37383b3933313b3239313b323b38335b1b }
+{ ANSI_RED          0x6d38373b36343b3431323b323b38335b1b }
+{ ANSI_BOLD         0x6d315b1b }
+{ ANSI_NORMAL       0x6d305b1b }
+{ ANSI_UP           0x465b1b }
+
+{ WHIRLPOOL_RNDS    24} ; Number of WHIRLPOOL rounds (non-standard)
+
+; WHIRLPOOL Memory Addresses
+{ WHIRLPOOL_C0      0x000000 } ; 256 64-bit values  (0x800 bytes)
+{ WHIRLPOOL_C1      0x000800 } ; 256 64-bit values  (0x800 bytes)
+{ WHIRLPOOL_C2      0x001000 } ; 256 64-bit values  (0x800 bytes)
+{ WHIRLPOOL_C3      0x001800 } ; 256 64-bit values  (0x800 bytes)
+{ WHIRLPOOL_C4      0x002000 } ; 256 64-bit values  (0x800 bytes)
+{ WHIRLPOOL_C5      0x002800 } ; 256 64-bit values  (0x800 bytes)
+{ WHIRLPOOL_C6      0x003000 } ; 256 64-bit values  (0x800 bytes)
+{ WHIRLPOOL_C7      0x003800 } ; 256 64-bit values  (0x800 bytes)
+{ WHIRLPOOL_K       0x004000 } ; 8 64-bit values    (0x40 bytes)
+{ WHIRLPOOL_BLOCK   0x004040 } ; 8 64-bit values    (0x40 bytes)
+{ WHIRLPOOL_STATE   0x004080 } ; 8 64-bit values    (0x40 bytes)
+{ WHIRLPOOL_L       0x0040C0 } ; 8 64-bit values    (0x40 bytes)
+{ WHIRLPOOL_BUFFER  0x004100 } ; 64 1-byte values   (0x40 bytes)
+{ WHIRLPOOL_HASH    0x004140 } ; 8 64-bit values    (0x40 bytes)
+{ WHIRLPOOL_RC      0x004180 } ; 24 64-bit values   (0xC0 bytes)
+
+; Kuznyechik Memory Addresses
+{ KUZNYECHIK_K01    0x004240 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K02    0x004250 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K03    0x004260 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K04    0x004270 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K05    0x004280 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K06    0x004290 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K07    0x0042a0 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K08    0x0042b0 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K09    0x0042c0 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_K10    0x0042d0 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_PI     0x0042e0 } ; 256 8-bit values   (0x100 bytes)
+{ KUZNYECHIK_INV    0x0043e0 } ; 256 8-bit values   (0x100 bytes)
+{ KUZNYECHIK_V      0x0044e0 } ; 16 8-bit value     (0x10 bytes)
+{ KUZNYECHIK_C      0x0044f0 } ; 32 128-bit value   (0x200 bytes)
+{ KUZNYECHIK_TMP    0x0046f0 } ; 2 64-bit values    (0x10 bytes)
+{ KUZNYECHIK_OUT    0x004700 } ; 2 64-bit values    (0x10 bytes)
+
+
+;;;
+; Print a piece of the banner that is encoded using Bytewise RLE of an XOR'd string
+; - param_1: BigInt to decode
+; - param_2: Time in nanoseconds to sleep between printing new lines
+; - param_3: Initial XOR key
+;;;
+<FUN_PrintBannerPiece>
+    GET P0, 1 ; Encoded, encrypted string
+    GET P1, 2 ; Time to wait between new lines
+    GET P2, 3 ; Starting XOR key
+
+    ; Print Loop
+    <Lab_PrintBannerPiece_NextWord>
+        ; Switch to native mode since we only care about two bytes
+        MODE 0
+
+        ; Get the next word and decrypt it
+        MOV R1, P0
+        XOR R1, P2
+        ADD P2, 0x15
+        AND P2, 0xFF
+        MOV R0, P2
+        SHL R0, 8
+        XOR R1, R0
+        ADD P2, 0x15
+        AND P2, 0xFF
+
+        ; Split the word into key-cnt (R1-R2)
+        MOV R2, R1
+        AND R1, 0xFFFF
+        SHR R1, 8
+        AND R2, 0xFF
+        CMP R2, 0
+        JMPC <LAB_PrintBannerPiece_Done>, EQ
+
+        ; Match the key to the character type in native mode
+        MOV R4, <Lab_PrintBannerPiece_Ise>
+        CMP R1, 0x00
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Iscomma>
+        CMP R1, 0x01
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsT>
+        CMP R1, 0x02
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Is2>
+        CMP R1, 0x03
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isv>
+        CMP R1, 0x04
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Ism>
+        CMP R1, 0x05
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isk>
+        CMP R1, 0x06
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isspace>
+        CMP R1, 0x07
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsC>
+        CMP R1, 0x08
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isgrave>
+        CMP R1, 0x09
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsF>
+        CMP R1, 0x0a
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isb>
+        CMP R1, 0x0b
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Iss>
+        CMP R1, 0x0c
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Iso>
+        CMP R1, 0x0d
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isapost>
+        CMP R1, 0x0e
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isg>
+        CMP R1, 0x0f
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isnewline>
+        CMP R1, 0x10
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsP>
+        CMP R1, 0x11
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isi>
+        CMP R1, 0x12
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Is6>
+        CMP R1, 0x13
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsR>
+        CMP R1, 0x14
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isa>
+        CMP R1, 0x15
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isdot>
+        CMP R1, 0x16
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isc>
+        CMP R1, 0x17
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isn>
+        CMP R1, 0x18
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Isr>
+        CMP R1, 0x19
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsE>
+        CMP R1, 0x1a
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Iscarrot>
+        CMP R1, 0x1b
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Is0>
+        CMP R1, 0x1c
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_Is8>
+        CMP R1, 0x1d
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsStar>
+        CMP R1, 0x1e
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsBold>
+        CMP R1, 0x20
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsNormal>
+        CMP R1, 0x21
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsBackground>
+        CMP R1, 0x22
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsOrange>
+        CMP R1, 0x23
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsYellow>
+        CMP R1, 0x24
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsRed>
+        CMP R1, 0x25
+        JMPC <Lab_PrintBannerPiece_CompDone>, EQ
+        MOV R4, <Lab_PrintBannerPiece_IsUp>
+
+        ; Jump to the dynamically computed jump destination in BigInt mode
+        <Lab_PrintBannerPiece_CompDone>
+        MODE 1
+        JMP R4, 0
+
+        <Lab_PrintBannerPiece_Ise>
+            MOV R1, 0x65
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Iscomma>
+            MOV R1, 0x2C
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsT>
+            MOV R1, 0x54
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Is2>
+            MOV R1, 0x32
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isv>
+            MOV R1, 0x76
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Ism>
+            MOV R1, 0x6d
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isk>
+            MOV R1, 0x6b
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isspace>
+            MOV R1, 0x20
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsC>
+            MOV R1, 0x43
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isgrave>
+            MOV R1, 0x60
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsF>
+            MOV R1, 0x46
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isb>
+            MOV R1, 0x62
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Iss>
+            MOV R1, 0x73
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Iso>
+            MOV R1, 0x6f
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isapost>
+            MOV R1, 0x27
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isg>
+            MOV R1, 0x67
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isnewline>
+            MOV R1, 0x0a
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsP>
+            MOV R1, 0x50
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isi>
+            MOV R1, 0x69
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Is6>
+            MOV R1, 0x36
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsR>
+            MOV R1, 0x52
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isa>
+            MOV R1, 0x61
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isdot>
+            MOV R1, 0x2e
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isc>
+            MOV R1, 0x63
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isn>
+            MOV R1, 0x6e
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Isr>
+            MOV R1, 0x72
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsE>
+            MOV R1, 0x45
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Iscarrot>
+            MOV R1, 0x5E
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Is0>
+            MOV R1, 0x30
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_Is8>
+            MOV R1, 0x38
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsStar>
+            MOV R1, 0x2A
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsBold>
+            MOV R1, ANSI_BOLD
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsNormal>
+            MOV R1, ANSI_NORMAL
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsBackground>
+            MOV R1, ANSI_BACKGROUND
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsOrange>
+            MOV R1, ANSI_ORANGE
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsYellow>
+            MOV R1, ANSI_YELLOW
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsRed>
+            MOV R1, ANSI_RED
+            JMP <LAB_PrintBannerPiece_BuildString>
+        <Lab_PrintBannerPiece_IsUp>
+            MOV R1, ANSI_UP
+            JMP <LAB_PrintBannerPiece_BuildString>
+
+        ; Validate that there is a string
+        <LAB_PrintBannerPiece_BuildString>
+        MOV C0, 0
+
+        ; Build the string in a register (XOR is forbidden due to small loop with many iterations)
+        # tryXor = False
+        MOV R3, R1
+        <LAB_PrintBannerPiece_PrintLoop>
+            PRINT R3
+            ADD C0, 1
+            CMP C0, R2
+            JMPC <LAB_PrintBannerPiece_PrintLoop>, LT
+        # tryXor = True
+
+        ; If printing a new line, wait a bit
+        CMP R1, 0x0a
+        JMPC <LAB_PrintBannerPiece_SleepDone>, NEQ
+            SLEEP 0, P1
+        <LAB_PrintBannerPiece_SleepDone>
+
+        ; Condtionally loop if the next byte is not zero
+        SHR P0, 16
+        CMP P0, 0
+        JMPC <Lab_PrintBannerPiece_NextWord>, NEQ
+    <LAB_PrintBannerPiece_Done>
+
+    ; Return void
+    MODE 1
+    RET 0
+
+
+;;;
+; Print the welcome message
+; - param_1: The encrypted message as a BigInt
+; - param_2: Initial XOR key
+; NOTE: The "customer ID" is P3, which is random in the release build
+;;;
+<FUN_PrintWelcomeMessage>
+    ; Encrypted message and its seed
+    GET P0, 1
+    GET P1, 2
+    MOV P2, 0
+
+    ; Decrypt the start of the message
+    MOV R0, P1
+    <LAB_PrintWelcomeMessage_DecryptLoop>
+        MOV R1, P0
+        AND R1, 0xFF
+        XOR R1, R0
+        SHL P2, 8
+        OR P2, R1
+
+        MOV R0, R1
+        SHR P0, 8
+        CMP P0, 0
+        JMPC <LAB_PrintWelcomeMessage_DecryptLoop>, NEQ
+
+    ; Print the start of the message
+    PRINT P2
+
+    ; Begin bolding text and print #
+    MOV P2, 0x23
+    SHL P2, 32
+    OR P2, ANSI_BOLD
+    PRINT P2
+
+    ; Print the random ID
+    MODE 82
+    MOV C0, 0x10
+    <LAB_PrintWelcomeMessage_RandomLoop>
+        MOV R0, P3
+        AND R0, 0xFF
+        MOD R0, 0x0A
+        ADD R0, 0x30
+        SHR P3, 4
+        PRINT R0
+        SUB C0, 1
+        CMP C0, 0
+        JMPC <LAB_PrintWelcomeMessage_RandomLoop>, GT
+
+    ; Return text to normal
+    PRINT ANSI_NORMAL
+    PRINT 0x0a
+
+    ; Return
+    MODE 11
+    RET 0
+
+
+;;;
+; Print the prompt for input (even though input is impossible)
+; - param_1: String to decode as a BigInt
+;;;
+<FUN_PrintPrompt>
+    GET R4, 1
+
+    <LAB_PrintPrompt_Loop>
+        MOV R0, R4
+        AND R0, 0xFF
+        MOV R1, R0
+        AND R0, 0x0F
+        AND R1, 0xF0
+        SHL R0, 4
+        SHR R1, 4
+        OR R0, R1
+        PRINT R0
+
+        SHR R4, 8
+        CMP R4, 0
+        JMPC <LAB_PrintPrompt_Loop>, NEQ
+
+    RET 0
+
+
+;;;
+; Print that there may be a skill issue
+; - param_1: String to decode as a BigInt
+;;;
+<FUN_PrintSkillIssue>
+    GET R0, 1
+    MOV R2, 0
+    MOV R3, 0
+
+    <LAB_PrintSkillIssue_XorLoop>
+        MOV R1, R0
+        AND R1, 0xFF
+        XOR R1, 0x38
+        SHL R2, 8
+        OR R2, R1
+        SHR R0, 8
+        CMP R0, 0
+        JMPC <LAB_PrintSkillIssue_XorLoop>, NEQ
+    PRINT R2
+    RET 0
+
+
+;;;
+; Compiler-expected entry point
+; Easiest solution:
+;    1. Reverse the HashInput function
+;    1. Solve for the input that resultes in a passing comparison
+;    1. ADD a MOV instruction to fill R0 with the input
+;    1. Adjust add bytes after the main function or remove bytes from before the main function to leave jump/call offsets in tact
+;    1. Let the VM handle the rest
+; VALID INPUT:  $?$__LeT_Th#_h@ck!ng_b3g1n__$?$ == 0x243f245f5f6e316733625f676e216b6340685f2368545f54654c5f5f243f24
+; FLAG:         CMO{<-*~-~*~-.1'm++In.-~*~-~*->} == 7d3e2d2a7e2d7e2a 7e2d2e6e492b2b6d 27312e2d7e2a7e2d 7e2a2d3c7b4f4d43
+;;;
+<FUN_main>
+    ; Print the banner
+    # forceXor = True
+    PRINT 0x00485b1b4a325b1b
+    # forceXor = False
+    MODE 1
+
+    ; Print the overly complicated banner
+    CALL <FUN_PrintBannerPiece>, 0xf6caaba08576414c3f2703f8f9c69ea48d7a45503b240ffeccd2a3a8b77e6d5f5d283200f1d6e1ac9f817352602e0704d3dac1b38c86750258323c08d4de, 0x457412e, 0xdf
+    CALL <FUN_PrintBannerPiece>, 0xb77f74551c2b120af6d5e5ad8a834e5944240407cbdbd8b1b887765e57331a02e5dfd4b69e8b72655d373c0ef6e3cab9ad8f64654e3b2219f0e7ccbf8393, 0x684e5ae, 0x92
+    CALL <FUN_PrintBannerPiece>, 0x92897d575c280103eadbd5af8480795b42311507ecddc6b39a8f785f54373b0be3e1d6b7a88d54634a3b350fe4e6c1bba2946662753d3a13dee9d4bdb497, 0x42c2644, 0x94
+    CALL <FUN_PrintBannerPiece>, 0x16f5c5cda1a390796a4f1a2508fef8d2b5a796797a5619290effcad5b8a988834f575c2d3403ead2deadbd85725b66311c0cecdfe3b38089505f4e360f0b, 0x68bc6fb, 0x0a
+    CALL <FUN_PrintBannerPiece>, 0x4f5645270500cad8d9aeb98477515b323806efdcebb2998b645e4d3d360aebe5dab6bf8c79624938320ee7e1c6babb907d66553c2612e3e8d5bead908b6a, 0x667a244, 0x6b
+    CALL <FUN_PrintBannerPiece>, 0xc2af8480795b58311507ecddc6b39a897d5f54351e0bf2e3c0b7bc8f53635b393e0ff0e5ecbba2956664503d2017e0ecf7bfb4955c6b5243361525edcac3, 0x5145a74, 0xc2
+    CALL <FUN_PrintBannerPiece>, 0xd2bfae97696b48440f171cedf4c3aa9b9e6d7d45321b26f1dcccac9fa3734049101f0ef7c2c091a19677424d30201df9e4c9afa5927e735126270afdfad3, 0x5d3e53f, 0xd2
+    CALL <FUN_PrintBannerPiece>, 0xe6dadbb09586515c4f321008e9dbeeb4b68a6b604536010cffe2c0b8b98e7b64573a2810e1e6d3bcaf927568493c0e1416eacbc0a596a16c5f45201819ed, 0x4fadbf2, 0xef
+    CALL <FUN_PrintBannerPiece>, 0xbd8a7f606f362505f6e2dfb8b9865e644d3a0510fbe4cfbe8c926368773e2d1f1de8f2c0b196a16c5f49331a20eec7c4939a81734c46351b1ef2c3cd909e, 0x461ca4c, 0x9f
+    CALL <FUN_PrintBannerPiece>, 0x1fecfbc2a99b946e5d40261a1bf5f8c6a49c95725748171e0df6eecaaba3a876744c252207f8c7cebda69e7a7b503d2615fce6d2a3a89f7e7756642a0000, 0x5e47d8a, 0x01
+    CALL <FUN_PrintBannerPiece>, 0x5e69543b2715e2ebd4c1ac978f6d4a41091915efc4c5a69ba6715c562c1823f3c0c9909f8e774249112116f7c2cdb0a8907b474f24252cfbe2daa6a5b57d, 0x5d2ae1c, 0x7c
+    CALL <FUN_PrintBannerPiece>, 0xe0d1a0abb77f74551c2b120af6d5e5ad8a834e5944240407cbdbd8b1b887765e57331a0ce5dfd4b0bb8b63615637280dd4e3cabdad8f5d65593b3811f2e7, 0x40d1411, 0xe6
+    CALL <FUN_PrintBannerPiece>, 0x32231df7fcc893a39b797e4f30252cfbe2d69fa7967d7a53342930ffeed3b1ab88816a57462d1903f0d9e7af8f85725b4c313807f6cddab6b9896e5f6a35, 0x47ad4cd, 0x34
+    CALL <FUN_PrintBannerPiece>, 0x5d3f3415feebd2c18f97976d4a43241920efded6b29ea1714647121d00f1c0cb979f94757c4b322216fdc5cdaaa3ae79644424272bfbf8d198a7967e7753, 0x5221341, 0x52
+    CALL <FUN_PrintBannerPiece>, 0x6e585c2e1704e6dacab09c86775c4e320908e1ded3b4a88a53604b2c320cffbcdeb8a38d6c644d3f0210eae6cfbca1925d6853390e1407e9dfc08f968564, 0x60bdfc9, 0x6d
+    CALL <FUN_PrintBannerPiece>, 0xbd9984754a452c1b19f1d8c7b69d8d735f493b1f2cf5d8cbbaa19377734d2e230dfafbcfaba5807b7d51212716fde7d3b1a98a7f69553b2b1501ffd7c6ad, 0x5ef538b, 0xac
+    CALL <FUN_PrintBannerPiece>, 0x223ae5edd69681936d695415371df8c1f3c1bb97864049452a3425efc9c5a8b79b755c6b171d17f3dae6ad9d8e5a794b25210cd9ffcdb08dab79734f3e7b, 0x9b8094, 0x24
+    CALL <FUN_PrintBannerPiece>, 0x0600ebf3dcba9fa74858542e1d20eecec194ba86625c4f15001af3f9ecb4b08a71465226252adee2deb8a3a7646a57130010ece6d594b69e7940723e3a14, 0xa84157, 0x15
+    CALL <FUN_PrintBannerPiece>, 0xeeb28e88734154162715d0e0dcb6a59266424926020eeae4d79bb88e7b47743c3812f9c8caa2adb4a66a46402b351cf6dfe18898946e5d662e0201d2fac6, 0x9532af, 0xc7
+    CALL <FUN_PrintBannerPiece>, 0x886d43512b2716e4f9fdbab0b57f795538330b2deccfe7ad87836a425d051e1ec9dbd5b19c9d6f7540293b09e3dfcea881ad727c6d37310df0ffd39da493, 0xcc843c, 0x8e
+    CALL <FUN_PrintBannerPiece>, 0xbab27d74763a3610fbf5cc86af815868443e2d061ed2d1d28a96926c5f57302e03fbfcc4a09a8164427235082ef2cec8b3899446675d10201cf6e5daa692, 0xaf3e47, 0xa3
+    CALL <FUN_PrintBannerPiece>, 0xc4a587cd685163310b07f6d0d9f59a84555f59351807eba5ccbb878d67634a363d4dfeeae9bbb5917c694f7d201ddbe9c3bfae84615552500d1711edd0d3, 0x984db8, 0xc2
+    CALL <FUN_PrintBannerPiece>, 0x25210cf3ff99b0a7ab79734f3e2211a9e2d69da7817d6055237914f9cfd5afab9288751946243103fdd9c4a787c9685363310b07f6d6d9f99a82555f5935, 0xd03bc2, 0x34
+    CALL <FUN_PrintBannerPiece>, 0x6032533d0c1410ead1c0b2ca856c7e423e181ab0fcc4a09a8170421a351c2ef2cec8b39d942e674910201cf6e5cea6fa897a424e2a2417fff886bba3b47c, 0xf96bf8, 0x7d
+    CALL <FUN_PrintBannerPiece>, 0x5535365cf9e1f2beba94876c48102b1024ecc8c2a99f9a3c5d43161a16f0dbc2acc88f767848241e0df1fe9cb1a5aa76724c3f2010a0e3cc9ca4807a6153, 0x8d96fb, 0x51
+    CALL <FUN_PrintBannerPiece>, 0xd4ae9d8b6e18413f3a06e2dccfbe80cc73526c34300af1edd2f0a5815e625e382304e4acd7b080906c6655373658f9e3f2beba948762480c2b1e24ecc8c2, 0xff327b, 0xc3
+    CALL <FUN_PrintBannerPiece>, 0xa56f4945280e1bc7dcd2979d97735a5b2d270ee7f9cba5a18c647f7730302bf9f3cfbeb5914762411d2701fde0c2a397946e4f552f2b120ff597c6a3b183, 0xa81865, 0x82
+    CALL <FUN_PrintBannerPiece>, 0xfeffe9bbb5917c7c4f172008dbe9c3bfae8d614752590d1711edd0dab3b784767f453f1b02e7c5f7b68ba1734d49340817c7d8dc93a19b77665929170aed, 0x86ed7b, 0xf8
+    CALL <FUN_PrintBannerPiece>, 0xc4d8b7baa0704c46353d16ecd9e9929e9a74675428000be8c4cca8a289677a6c3d3b36faf6d0bbba8c586f4e182804feedc9de8c919d4a56522c1f18f0f0, 0xffa28c, 0xd9
+    CALL <FUN_PrintBannerPiece>, 0x8e53415b32072df7f1cdb084936b64681f251ffbe2f5a5b3965941532d2914daf7c3b88eb3817b57460f091beafbe5af898568785b2b1c24d7ddd7b39aa9, 0xfedbc7, 0x88
+    CALL <FUN_PrintBannerPiece>, 0xdcb6a5a066664914020eeae4d797b8967b4b743c3812f9c2cab6adbea66a46402b3d1ce6dfe98898946e5d6c2e1601d8fac6a29c8f5b404633372cf4f0ca, 0xe9c0c8, 0xcb
+    CALL <FUN_PrintBannerPiece>, 0x301b06f1dcc7b29d88735e49341f0af5e0cbb6a18c77624d38230ef9e4cfbaa5907b76531d2615a2ced2aea89350745447043000fcd6c58386806977622e, 0xd58de6, 0x2f
+
+    ; Print the welcome message and useless customer ID
+    CALL <FUN_PrintWelcomeMessage>, 0x3c090f054b59161a5546091d5242070c07094741414c0316180d4c431606071b0208175c0e79361a0752431606071b02081752690d64491a53b9, 0x99
+
+    ; Print the prompt for input
+    CALL <FUN_PrintPrompt>, 0x2a35657e69647e6f63602f647024627f67737371607022757f69702275647e6560256371656c605
+
+    ; Sleep for a period of time instead of actually reading input
+    SLEEP 0, 500000000
+
+    ; THIS IS DEVELOPMENT CODE: DO NOT UNCOMMENT FOR RELEASE
+    ;MOV R0, 0x243f245f5f6e316733625f676e216b6340685f2368545f54654c5f5f243f24  ; Expected input
+
+    ; Perform a hash of a bogus value (should be 0, since that's what PrintPrompt returns)
+    MOV P0, R0
+    CALL <FUN_MutateInput>, R0
+
+    ; Compare the mutated value with the expected value
+    CMP R0, 0x0868917cbca32642332f0149e9591735838bbe0c29b1b0dbb819603e97135e
+
+    ; Decrypt the flag using the **input** if the mutated value matches
+    JMPC <LAB_main_fail>, NEQ
+        CALL <FUN_DecryptFlag>, P0
+        JMP <LAB_main_checkDone>
+    <LAB_main_fail>
+        MODE 93
+        CALL <FUN_PrintSkillIssue>, 0x32322363095523630b0955637d6a6a776a6523630855186f5d18594a5d1850594e51565f184c4a574d5a545d184a
+        CALL <FUN_PrintSkillIssue>, 0x5d595c51565f1841574d4a185156484d4c16187e574a1855574a5d1851565e574a55594c5157561418545757534d48181a4b5351545418514b4b4d5d1a32
+    <LAB_main_checkDone>
+
+    ; Finish virtual execution
+    EXIT 1
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;                                                                                                             ;;
+;; MODERATELY DIFFICULT FUNCTION THAT SHOULD LEAVE THE REVERSE ENGINEER FEELING GOOD                           ;;
+;;                                                                                                             ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;
+; Mutate the input with something that can be reversed and is not destructive
+; This is proved in unmutateInput.py
+; - param_1: Input to mutate
+; Returns the mutated input (in R0)
+;;;
+<FUN_MutateInput>
+    ; Get the value to mutate and reduce it to the expected size
+    GET R0, 1
+    AND R0, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+
+    ; Build a 256-byte BigInt of XORs (beyond 63 bytes, so some trickery is needed)
+    MOV P0, 0xa8769f686ab4449a2eace1dc0ca25d64264b530fb3fa93973c320d902befa31c
+    SHL P0, 256
+    OR  P0, 0x62571fd0d2a65d830a2381a1160d63dca1478f43fc298439537986bffc0220d3
+    SHL P0, 256
+    OR  P0, 0x3b68ad52e8ecdd7f935b4035aa0772bd4463218bb499a4e338f9de155354bb02
+    SHL P0, 256
+    OR  P0, 0xd73b9b3bbdcee2d16062b6fba6a54867493a55bb7cf48f82b688ff264280012a
+    SHL P0, 256
+    OR  P0, 0x7cca37ab3d1e8a575fb89628e5e7cd6becc4dfb5529b8a5b2250d2063c6e5f80
+    SHL P0, 256
+    OR  P0, 0x8da3c8b386b2e2ad2908bb11d70dede5e34fe74a2569de6841204b3ec2a06c06
+    SHL P0, 256
+    OR  P0, 0x9f0d7d09e533c588052e166d5548e8dd1063603b3cd42c503f8c56c0ca6d57fa
+    SHL P0, 256
+    OR  P0, 0xefb3d6c0556038ef1224b9809650c80718459e3f61f006ffec3dee234a85012d
+
+    ; Initialize the round data
+    MOV C0, 0
+    MOV P1, 0x80000000000000000000000000000000000000000000000000000000000000
+
+    <LAB_MutateInput_RoundLoop>
+        ; Build the XOR mask
+        MOV R1, P0
+        AND R1, 0xFF
+        MOV R2, R1
+        MOV C1, 0
+        <LAB_MutateInput_BuildXor>
+            SHL R2, 8
+            OR R2, R1
+            ADD C1, 1
+            CMP C1, 19
+            JMPC <LAB_MutateInput_BuildXor>, LT
+        MOV R1, R2
+
+        ; Perform the XOR
+        XOR R0, R1
+
+        ; Rotate the value
+        MOV R1, R0
+        SHR R0, 1
+        AND R1, 1
+        CMP R1, 1
+        JMPC <LAB_MutateInput_RotationDone>, NEQ
+            OR R0, P1
+        <LAB_MutateInput_RotationDone>
+
+        ; Update the XOR atlas
+        SHR P0, 8
+
+        ; Increment the counter, conditionally looping
+        ADD C0, 1
+        CMP C0, 0xFF
+        JMPC <LAB_MutateInput_RoundLoop>, LTE
+
+    ; Return the mutated value
+    RET R0
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;                                                                                                             ;;
+;; THIS IS WHERE THE REALLY HARD FUNCTIONS START... FOR THE SPEED, CALCULATIONS ARE IN NATIVE MODE             ;;
+;;                                                                                                             ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;
+; Decrypt the flag
+; - param_1: Plaintext input to use for decryption as a BigInt
+; Under working conditions...
+; - Input is 0x243f245f5f6e316733625f676e216b6340685f2368545f54654c5f5f243f24
+; - Mutated is 0x0868917cbca32642332f0149e9591735838bbe0c29b1b0dbb819603e97135e
+; - Reduced WHIRLPOOL hash is dec17cfec30f1add 7776307f4eb206c7 078ec620c81fafca 4372b0a850a379eb
+;;;
+<FUN_DecryptFlag>
+    ; Get the BigInt into a register
+    GET P0, 1
+
+    ; Write the BigInt into memory, padding up to 64 bytes
+    SHL P0, 8
+    MOV R0, WHIRLPOOL_BUFFER
+    MOV [R0], P0             ; 32 bytes / 64 bytes
+    MOV [R0 + 0x20], P0      ; 64 bytes / 64 bytes
+
+    ; Zero out the memory of the hash
+    MOV R0, WHIRLPOOL_HASH
+    MOV [R0], 0
+    MOV [R0 + 0x08], 0
+    MOV [R0 + 0x10], 0
+    MOV [R0 + 0x18], 0
+    MOV [R0 + 0x20], 0
+    MOV [R0 + 0x28], 0
+    MOV [R0 + 0x30], 0
+    MOV [R0 + 0x38], 0
+
+    ; Store the precomputed Whirlpool circulant tables and round constants
+    MODE 73
+    CALL <FUN_WhirlPool_StoreCirculantTables>
+    MODE 20
+    CALL <FUN_WhirlPool_StoreRoundConstants>
+
+    ; Perform the WHIRLPOOL hash on the buffer
+    CALL <FUN_WhirlPool_Hash>, WHIRLPOOL_BUFFER
+
+    ; Reduce the hash to 256 bits (from 512) to prepare for Kuznyechik
+    MOV P1, R0
+    XOR [P1], [P1 + 0x20]
+    XOR [P1 + 0x08], [P1 + 0x28]
+    XOR [P1 + 0x10], [P1 + 0x30]
+    XOR [P1 + 0x18], [P1 + 0x38]
+
+    ; Create the Kuznyechik tables
+    CALL <FUN_Kuznyechik_CreateSboxes>
+    CALL <FUN_Kuznyechik_StoreConstants>
+    CALL <FUN_Kuznyechik_StoreVector>
+
+    ; Expand the master key into round keys for Kuznyechik
+    CALL <FUN_Kuznyechik_ExpandKeys>, P1
+
+    ; Decrypt and print the left half of the flag
+    MOV R0, KUZNYECHIK_OUT
+    MOV [R0], 0xe2c4aec6ef4158f1
+    MOV [R0 + 0x08], 0xd6535ba1e59f1694
+    CALL <FUN_Kuznyechik_Decrypt>, P1, KUZNYECHIK_OUT
+    PRINT [R0]
+    PRINT [R0+0x08]
+
+    ; Decrypt the right half of the flag
+    MOV [R0], 0xf60f3a90fc9310c0
+    MOV [R0 + 0x08], 0x2d589dd9205918d9
+    CALL <FUN_Kuznyechik_Decrypt>, P1, KUZNYECHIK_OUT
+    PRINT [R0]
+    PRINT [R0+0x08]
+
+    ; Done!
+    RET 0
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;                                                                                                             ;;
+;; KUZNYECHIK FUNCTIONS                                                                                        ;;
+;;                                                                                                             ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;
+; Decrypt the flag
+; - param_1: Pointer to the master key
+; - param_2: Pointer to the encrypted data
+; Returns a pointer to the data decrypted in place
+;;;
+<FUN_Kuznyechik_Decrypt>
+    GET P0, 1
+    GET P1, 2
+
+    ; Perform the decryption loop with Keys 10 - 2
+    MOV C0, KUZNYECHIK_K10
+    <LAB_Kuznyechik_Decrypt_Round>
+        ; XOR the ciphertext with the round key
+        MOV R0, P1
+        MOV R1, C0
+        XOR [R0], [R1]
+        XOR [R0 + 0x08], [R1 + 0x08]
+
+        ; Perform the inverse linear transformation
+        CALL <FUN_Kuznyechik_LinearInverse>, R0, KUZNYECHIK_V
+
+        ; Perform the inverse S-Box transformation
+        MOV P2, R0
+        CALL <FUN_Kuznyechik_Substitute>, [P2], KUZNYECHIK_INV
+        MOV [P2], R0
+        CALL <FUN_Kuznyechik_Substitute>, [P2+8], KUZNYECHIK_INV
+        MOV [P2+8], R0
+
+        ; Go to the next decryption key (K10, K9, ..., K2, K1)
+        SUB C0, 0x10
+        CMP C0, KUZNYECHIK_K02
+        JMPC <LAB_Kuznyechik_Decrypt_Round>, GTE
+
+    ; Perform the final XOR with K1
+    MOV R0, P1
+    MOV R1, C0
+    XOR [R0], [R1]
+    XOR [R0 + 0x08], [R1 + 0x08]
+
+    ; Return the point to decrypted data
+    RET R0
+
+
+;;;
+; Create the round keys from a master key
+; - param_1: Pointer to the master key to expand
+; Returns a pointer to the expanded keys
+;;;
+<FUN_Kuznyechik_ExpandKeys>
+    ; Get the pointer of the input keys (volatile is okay)
+    GET R0, 1
+
+    ; Copy K1 from the upper half of the master key
+    MOV R1, KUZNYECHIK_K01
+    MOV [R1], [R0]
+    MOV [R1 + 0x08], [R0 + 0x08]
+
+    ; Copy K2 from the lower half of the master key
+    MOV R1, KUZNYECHIK_K02
+    MOV [R1], [R0 + 0x10]
+    MOV [R1 + 0x08], [R0 + 0x18]
+
+    ; Generate the remaining keys (stored in memory)
+    CALL <FUN_Kuznyechik_GenerateNextKeyPair>, KUZNYECHIK_K01, 0 ; Generate K3 and K4
+    CALL <FUN_Kuznyechik_GenerateNextKeyPair>, R0, 8             ; Generate K5 and K6
+    CALL <FUN_Kuznyechik_GenerateNextKeyPair>, R0, 16            ; Generate K7 and K8
+    CALL <FUN_Kuznyechik_GenerateNextKeyPair>, R0, 24            ; Generate K9 and K10
+
+    ; Done
+    RET 0
+
+;;;
+; Generate the next two keys given an input key pair
+; param_1 - Address of K_{n-2} which is adjacent to K_{n-1}
+; param_2 - Offset into constants to begin from
+; Returns the address of the next key pair
+;;;
+<FUN_Kuznyechik_GenerateNextKeyPair>
+    ; Deriving Kn requires the use of K_{n-2} and K_{n-1}
+    GET P3, 2
+    GET P0, 1
+    MOV P1, P0
+    ADD P1, 0x10
+    MOV P2, KUZNYECHIK_TMP
+
+    ; Copy K_{n-2} to Kn
+    MOV R0, P0
+    ADD R0, 0x20
+    MOV [R0], [P0]
+    MOV [R0 + 0x08], [P0 + 0x08]
+    MOV P0, R0
+
+    ; Copy K_{n-1} to K_{n+1}
+    MOV R0, P1
+    ADD R0, 0x20
+    MOV [R0], [P1]
+    MOV [R0 + 0x08], [P1 + 0x08]
+    MOV P1, R0
+
+    ; Iterate through all 8 round constants
+    MOV C0, 0
+    <LAB_Kuznyechik_GenerateNextKeyPair_Round>
+        ; Get the round constant
+        MOV R0, P3
+        ADD R0, C0
+        MUL R0, 16
+        ADD R0, KUZNYECHIK_C
+
+        ; Compute working key = X[Cn](K_{n-2})
+        MOV [P2], [R0]
+        XOR [P2], [P0]
+        MOV [P2 + 0x08], [R0 + 0x08]
+        XOR [P2 + 0x08], [P0 + 0x08]
+
+        ; Perform the substitution transformation on the working key
+        CALL <FUN_Kuznyechik_Substitute>, [P2], KUZNYECHIK_PI
+        MOV [P2], R0
+        CALL <FUN_Kuznyechik_Substitute>, [P2 + 0x08], KUZNYECHIK_PI
+        MOV [P2 + 0x08], R0
+
+        ; Perform the linear transformation on the working key
+        MOV R0, KUZNYECHIK_V
+        CALL <FUN_Kuznyechik_Linear>, P2, R0
+
+        ; Apply F to the working key
+        XOR [P2], [P1]
+        XOR [P2 + 0x08], [P1 + 0x08]
+
+        ; Shift the keys in the key pair
+        MOV [P1], [P0]
+        MOV [P1 + 0x08], [P0 + 0x08]
+        MOV [P0], [P2]
+        MOV [P0 + 0x08], [P2 + 0x08]
+
+        ; Go to next round constant if it exists
+        ADD C0, 1
+        CMP C0, 8
+        JMPC <LAB_Kuznyechik_GenerateNextKeyPair_Round>, LT
+
+    ; Return the starting address of the next key pair
+    RET P0
+
+
+;;;
+; Perform the nonlinear S-Box transformation on a native input
+; - param_1: Input to transform
+; - param_2: Pointer to the S-Box to use (pi or inverse pi)
+; Returns the transformed input as a native type
+;;;
+<FUN_Kuznyechik_Substitute>
+    GET R0, 1
+    GET R1, 2
+    MOV R2, 0
+    MOV C0, 0
+    <LAB_Kuznyechik_Substitute_Step>
+        MOV R3, R0
+        AND R3, 0xFF
+        MOV R4, [R1 + R3]
+        AND R4, 0xFF
+        MOV R3, C0
+        MUL R3, 8
+        SHL R4, R3
+        OR R2, R4
+        SHR R0, 8
+        ADD C0, 1
+        CMP C0, 8
+        JMPC <LAB_Kuznyechik_Substitute_Step>, LT
+    RET R2
+
+
+;;;
+; Perform the linear GF(256) multiplication transformation on a 128-bit input
+; - param_1: Pointer to the input to transform
+; - param_2: Pointer to the vector to use (always v)
+; Returns the same pointer as param_1
+;;;
+<FUN_Kuznyechik_Linear>
+    GET P0, 1
+    GET P1, 2
+
+    MOV C0, 0
+    <LAB_Kuznyechik_Linear_R>
+        MOV P2, 0
+        MOV C1, 0
+        <LAB_Kuznyechik_Linear_L>
+            ; Get byte a of multiplication from the input
+            MOV R0, [P0+C1]
+            AND R0, 0xFF
+
+            ; Get byte b of multiplication from the vector
+            MOV R1, [P1+C1]
+            AND R1, 0xFF
+
+            ; Perform multiplication
+            CALL <FUN_Kuznyechik_G256Mult>, R0, R1
+            XOR P2, R0
+
+            ; L cnt incrementer
+            ADD C1, 1
+            CMP C1, 16
+            JMPC <LAB_Kuznyechik_Linear_L>, LT
+
+        ; Shift the state and prepend the result of L
+        MOV R0, [P0]
+        AND R0, 0xFF
+        SHR [P0], 8
+        SHR [P0 + 0x08], 8
+        SHL P2, 56
+        OR [P0], P2
+        SHL R0, 56
+        OR [P0 + 0x08], R0
+
+        ; R cnt incrementer
+        ADD C0, 1
+        CMP C0, 16
+        JMPC <LAB_Kuznyechik_Linear_R>, LT
+
+    RET P0
+
+
+;;;
+; Perform the inverse linear transformation on a 128-bit input
+; - param_1: Pointer to the input to trasnform
+; - param 2: Pointer to the vector to use (always v)
+; Returns the same pointer as param_1
+;;;
+<FUN_Kuznyechik_LinearInverse>
+    GET P0, 1
+    GET P1, 2
+
+    MOV C0, 0
+    <LAB_Kuznyechik_LinearInverse_R>
+        MOV P2, [P0 + 7]
+        AND P2, 0xFF
+        MOV C1, 7
+        <LAB_Kuznyechik_LinearInverse_L>
+            ; Get byte b of multiplcation from the vector
+            MOV R1, [P1 + C1]
+            AND R1, 0xFF
+            MOV R5, R1
+
+            ; Update C1, wrapping around if needed
+            CMP C1, 0
+            JMPC <LAB_Kuznyechik_LinearInverse_LDec>, NEQ
+                MOV C1, 16
+            <LAB_Kuznyechik_LinearInverse_LDec>
+            SUB C1, 1
+
+            ; Get byte a of multiplication from the input
+            MOV R0, [P0 + C1]
+            AND R0, 0xFF
+            MOV R4, R0
+
+            ; Perform multiplication
+            CALL <FUN_Kuznyechik_G256Mult>, R0, R1
+            XOR P2, R0
+
+            ; Stop after 16 steps
+            CMP  C1, 8
+            JMPC <LAB_Kuznyechik_LinearInverse_L>, NEQ
+
+        ; Shift the state and append the result of L
+        MOV R0, [P0 + 0x0F]
+        AND R0, 0xFF
+        SHL [P0], 8
+        OR [P0], R0
+        SHL [P0 + 0x08], 8
+        OR [P0 + 0x08], P2
+
+        ; R cnt incrementer
+        ADD C0, 1
+        CMP C0, 16
+        JMPC <LAB_Kuznyechik_LinearInverse_R>, LT
+
+    ; Return the pointer of input
+    RET P0
+
+
+;;;
+; Perform GF(256) multiplication of two bytes
+; - param_1: First byte
+; - param_2: Second byte
+; Returns the product
+; NOTE: This was change from polynomial 0xC3 to 0xF5
+;;;
+<FUN_Kuznyechik_G256Mult>
+    GET R0, 1 ; a
+    GET R1, 2 ; b
+    MOV R2, 0 ; c
+
+    CMP R1, 0
+    JMPC <LAB_Kuznyechik_G256Mult_Done>, EQ
+
+    <LAB_Kuznyechik_G256Mult_Step>
+        MOV R3, R1
+        AND R3, 1
+        CMP R3, 1
+        JMPC <LAB_Kuznyechik_G256Mult_XorDone>, NEQ
+            XOR R2, R0
+            AND R2, 0xFF
+        <LAB_Kuznyechik_G256Mult_XorDone>
+
+        MOV R3, R0
+        AND R3, 0x80
+        CMP R3, 0
+        JMPC <LAB_Kuznyechik_G256Mult_SetConst>, NEQ
+            MOV R3, 0
+            JMP <LAB_Kuznyechik_G256Mult_SetDone>
+        <LAB_Kuznyechik_G256Mult_SetConst>
+            MOV R3, 0xF5
+        <LAB_Kuznyechik_G256Mult_SetDone>
+        SHL R0, 1
+        XOR R0, R3
+
+        SHR R1, 1
+        CMP R1, 0
+        JMPC <LAB_Kuznyechik_G256Mult_Step>, NEQ
+    <LAB_Kuznyechik_G256Mult_Done>
+
+    RET R2
+
+
+;;;
+; Store the Kuznyechik S-Box and its inverse in memory (so called Pi and Pi^-1)
+; NOTE: These were changed to be random, but Pi^-1 is still the inverse of Pi
+;;;
+<FUN_Kuznyechik_CreateSboxes>
+    MOV R0, KUZNYECHIK_PI
+    MODE 69
+    MOV [R0 + 0x00], 0x79e4a985f07c7f3e01377ba4fe8a8e1ec863b89b147d3954f894be9eee754b0b25a0fc8008aa00f2a3e33043bf589f56e26b733c8c0e9788
+    MOV [R0 + 0x38], 0xc753b976c2524c4d6ae7dff161f6ce46476e17b4b02b1fea832e26740c59c3de878928671915b249d48662828b20d7db7ad0da116d6c95a6
+    MOV [R0 + 0x70], 0x42bb965c6040dc106848fbed05c96fbce15e03abc4d932f5f4d50a7e2f162c9c644e3f5fc50f24a1915db593af06d31827a7909a0713f323
+    MOV [R0 + 0xa8], 0x4fcbef813aebca1af9e5d1c11ccf5ba266922951fa383445653536e9721299049dfda54a22b1028fe00d84f7dd77ba55318da869ec2aff71
+    MOV [R0 + 0xe0], 0xd8ad5ac03dd65044ac2db6e841ccbd1d98e6c657aeb37833b71bd2cd21703b09
+    MOV R0, KUZNYECHIK_INV
+    MOV [R0 + 0x00], 0xa39a7bc085c90f219232d653188df8234d8a5a13a2c26c704908e8b3fea85b98a7552791a0cbfb628b56ee894adabd5d0ec5c6b9f081df2d
+    MOV [R0 + 0x38], 0x9500e334f9ab11ba4f40b8e02c77eb72af96383919cc587ef428d0103e3abce194869e74b1e5522a5cbfc79716654373794e6b6a3647dc7f
+    MOV [R0 + 0x70], 0xd23c1a5435c3d8fa018c12020d6f07f15f6604d55764ac24c809de33630a5e303175691e9cbe9fa5291ccf8814a4c1f7a668cd0c2fb09026
+    MOV [R0 + 0xa8], 0x9bf3e6ef842205ddffed9d4cf259ca4b2b1de97876d13d153ff59383513bb4e4b241fceaaea97a1761e28e6799fdb56e4550d371606d82e7
+    MOV [R0 + 0xe0], 0x46f6b6062e3787d7ad1b7cdbaa48c4ecd442808fa1204403d90bce257dbbb71f
+    MODE 70
+    RET 0
+
+
+;;;
+; Store the Kuznyechik round constants in memory
+; NOTE: These were changed to necessitate the changed polynomial from 0xC3 to 0xF5 and changed vector
+;;;
+<FUN_Kuznyechik_StoreConstants>
+    MODE 55
+    MOV R0, KUZNYECHIK_C
+    MOV [R0], 0x14aa5d7829a7e418893e90d23ccf8d01
+    MOV [R0 + 0x010], 0x28a1baf052bb3d30e77cd551786bef02
+    MOV [R0 + 0x020], 0x3c0be7887b1cd9286e42458344a46203
+    MOV [R0 + 0x030], 0x50b78115a4837a603bf85fa2f0d62b04
+    MOV [R0 + 0x040], 0x441ddc6d8d249e78b2c6cf70cc19a605
+    MOV [R0 + 0x050], 0x78163be5f6384750dc848af388bdc406
+    MOV [R0 + 0x060], 0x6cbc669ddf9fa34855ba1a21b4724907
+    MOV [R0 + 0x070], 0xa09bf72abdf3f4c07605beb115595608
+    MOV [R0 + 0x080], 0xb431aa52945410d8ff3b2e632996db09
+    MOV [R0 + 0x090], 0x883a4ddaef48c9f091796be06d32b90a
+    MOV [R0 + 0x0a0], 0x9c9010a2c6ef2de81847fb3251fd340b
+    MOV [R0 + 0x0b0], 0xf02c763f19708ea04dfde113e58f7d0c
+    MOV [R0 + 0x0c0], 0xe4862b4730d76ab8c4c371c1d940f00d
+    MOV [R0 + 0x0d0], 0xd88dcccf4bcbb390aa8134429de4920e
+    MOV [R0 + 0x0e0], 0xcc2791b7626c578823bfa490a12b1f0f
+    MOV [R0 + 0x0f0], 0xb5c31b548f131d75ec0a89972ab2ac10
+    MOV [R0 + 0x100], 0xa169462ca6b4f96d65341945167d2111
+    MOV [R0 + 0x110], 0x9d62a1a4dda820450b765cc652d94312
+    MOV [R0 + 0x120], 0x89c8fcdcf40fc45d8248cc146e16ce13
+    MOV [R0 + 0x130], 0xe5749a412b906715d7f2d635da648714
+    MOV [R0 + 0x140], 0xf1dec7390237830d5ecc46e7e6ab0a15
+    MOV [R0 + 0x150], 0xcdd520b1792b5a25308e0364a20f6816
+    MOV [R0 + 0x160], 0xd97f7dc9508cbe3db9b093b69ec0e517
+    MOV [R0 + 0x170], 0x1558ec7e32e0e9b59a0f37263febfa18
+    MOV [R0 + 0x180], 0x01f2b1061b470dad1331a7f403247719
+    MOV [R0 + 0x190], 0x3df9568e605bd4857d73e2774780151a
+    MOV [R0 + 0x1a0], 0x29530bf649fc309df44d72a57b4f981b
+    MOV [R0 + 0x1b0], 0x45ef6d6b966393d5a1f76884cf3dd11c
+    MOV [R0 + 0x1c0], 0x51453013bfc477cd28c9f856f3f25c1d
+    MOV [R0 + 0x1d0], 0x6d4ed79bc4d8aee5468bbdd5b7563e1e
+    MOV [R0 + 0x1e0], 0x79e48ae3ed7f4afdcfb52d078b99b31f
+    MOV [R0 + 0x1f0], 0x9f7336a8eb263aea2d14e7db5491ad20
+    MODE 24
+    RET 0
+
+
+;;;
+; Store the Kuznyechik linear transformation vector in memory
+; NOTE: Changed to be random, but must end in 0x01 because I messed up somewhere?
+;;;
+<FUN_Kuznyechik_StoreVector>
+    MODE 19
+    MOV [KUZNYECHIK_V], 0x8d940ba5f5ab31182b5b1a356477e401
+    MODE 2
+    RET 0
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;                                                                                                             ;;
+;; WHIRLPOOL FUNCTIONS                                                                                         ;;
+;;                                                                                                             ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;
+; Compute a WHIRLPOOL hash in native mode
+; - param_1: Pointer to the 64-byte value to hash
+;;;
+<FUN_WhirlPool_Hash>
+    ; Get the buffer pointer (should be WHIRLPOOL_BUFFER)
+    GET P0, 1
+
+    ; Map the buffer to a block
+    MOV C0, 0   ; i
+    MOV C1, P0  ; buffer[j] as a ptr
+    <LAB_WhirlPool_Hash_MapBufferToBlock>
+        ; Compute i for block[i]
+        MOV R0, C0
+        MUL R0, 8
+        MOV [R0 + WHIRLPOOL_BLOCK], 0
+
+        ; Initialize the mask
+        MOV R1, 0xFF00000000000000
+
+        ; Build out the block, using a carry-over j
+        MOV C2, 0
+        <LAB_WhirlPool_Hash_MapBufferToBlockInner>
+            ; Get the byte, not in the right place
+            MOV R2, [C1]
+            AND R2, R1
+
+            ; Shift it to the right place (different than the source way)
+            MOV R3, 8
+            MUL R3, C2
+            SHR R2, R3
+
+            ; Do the XOR
+            XOR [R0 + WHIRLPOOL_BLOCK], R2
+            SUB C1, 1
+            ADD C2, 1
+            CMP C2, 8
+            JMPC <LAB_WhirlPool_Hash_MapBufferToBlockInner>, LT
+        ADD C1, 16
+
+        ; Increment i for next iteration
+        ADD C0, 1
+        CMP C0, 8
+        JMPC <LAB_WhirlPool_Hash_MapBufferToBlock>, LT
+
+    ; Compute and apply K^0 to the cipher state
+    MOV C0, 0
+    <LAB_WhirlPool_Hash_ApplyK0>
+        ; K[i] = hash[i]
+        MOV R0, C0
+        MUL R0, 8
+        MOV [R0 + WHIRLPOOL_K], [R0 + WHIRLPOOL_HASH]
+
+        ; state[i] = block[i] ^ K[i]
+        MOV R1, [R0 + WHIRLPOOL_BLOCK]
+        XOR R1, [R0 + WHIRLPOOL_K]
+        MOV [R0 + WHIRLPOOL_STATE], R1
+
+        ; Repeat 8 times (once for each state)
+        ADD C0, 1
+        CMP C0, 8
+        JMPC <LAB_WhirlPool_Hash_ApplyK0>, LT
+
+    ; Iterate over all rounds (Probably pull this into a round function)
+    MOV C0, 0
+    <LAB_WhirlPool_Hash_RoundLoop>
+
+        ; Compute K^r from K^{r-1}
+        MOV C1, 0
+        <LAB_WhirlPool_Hash_RoundLoop_Kr_1>
+            MOV R0, C1
+            MUL R0, 8
+            ADD R0, WHIRLPOOL_L
+            CALL <FUN_WhirlPool_LinearTransformation>, R0, WHIRLPOOL_C0, WHIRLPOOL_K, C1
+
+            ADD C1, 1
+            CMP C1, 8
+            JMPC <LAB_WhirlPool_Hash_RoundLoop_Kr_1>, LT
+        MOV C1, 0
+        <LAB_WhirlPool_Hash_RoundLoop_Kr_2>
+            MOV R0, C1
+            MUL R0, 8
+            MOV [R0 + WHIRLPOOL_K], [R0 + WHIRLPOOL_L]
+            ADD C1, 1
+            CMP C1, 8
+            JMPC <LAB_WhirlPool_Hash_RoundLoop_Kr_2>, LT
+        MOV R0, C0
+        MUL R0, 8
+        XOR [WHIRLPOOL_K], [R0 + WHIRLPOOL_RC]
+
+        ; Apply the r-th round transformation
+        MOV C1, 0
+        <LAB_WhirlPool_Hash_RoundLoop_R_1>
+            MOV R0, C1
+            MUL R0, 8
+            ADD R0, WHIRLPOOL_L
+            CALL <FUN_WhirlPool_LinearTransformation>, R0, WHIRLPOOL_C0, WHIRLPOOL_STATE, C1
+            MOV R1, C1
+            MUL R1, 8
+            ADD R1, WHIRLPOOL_K
+            XOR [R0], [R1]
+            ADD C1, 1
+            CMP C1, 8
+            JMPC <LAB_WhirlPool_Hash_RoundLoop_R_1>, LT
+        MOV C1, 0
+        <LAB_WhirlPool_Hash_RoundLoop_R_2>
+            MOV R0, C1
+            MUL R0, 8
+            MOV [R0 + WHIRLPOOL_STATE], [R0 + WHIRLPOOL_L]
+            ADD C1, 1
+            CMP C1, 8
+            JMPC <LAB_WhirlPool_Hash_RoundLoop_R_2>, LT
+
+        ; Repeat for 10 rounds
+        ADD C0, 1
+        CMP C0, WHIRLPOOL_RNDS
+        JMPC <LAB_WhirlPool_Hash_RoundLoop>, LT
+
+    ; Apply the Miyaguchi-Preneel compression function
+    MOV C0, 0
+    <LAB_WhirlPool_Hash_Preneel>
+        MOV R0, C0
+        MUL R0, 8
+        MOV R1, [R0 + WHIRLPOOL_STATE]
+        XOR R1, [R0 + WHIRLPOOL_BLOCK]
+        XOR [R0 + WHIRLPOOL_HASH], R1
+
+        ADD C0, 1
+        CMP C0, 8
+        JMPC <LAB_WhirlPool_Hash_Preneel>, LT
+
+    ; Return the virtual address of the hash
+    RET WHIRLPOOL_HASH
+
+
+;;;
+; Perform a step in WHIRLPOOL where you do L[i] = (C0[a] ^ C1[b] ^ ... ^ C7[h])
+; - param_1: Pointer in L to store the result
+; - param_2: Pointer to the circulant tables, C0..C7
+; - param_3: Pointer to deriver of a..h
+; - param_4: Starting index for the deriver
+;;;
+<FUN_WhirlPool_LinearTransformation>
+    ; Dereference the function parameters
+    GET R0, 1
+    GET C0, 2
+    GET C1, 3
+    GET C2, 4
+
+    ; Intialize the value as 0
+    MOV [R0], 0
+
+    ; Perform THE LOOP
+    MOV C3, 56
+    <LAB_WhirlPool_LinearTransformation_Loop>
+        MOV R1, C2
+        MUL R1, 8
+        MOV R1, [C1 + R1]
+        SHR R1, C3
+        AND R1, 0xFF
+        MUL R1, 8
+        MOV R1, [C0 + R1]
+        XOR [R0], R1
+
+        SUB C3, 8
+        ADD C0, 0x800
+
+        CMP C2, 0
+        JMPC <LAB_WhirlPool_LinearTransformation_WrapAround>, EQ
+            SUB C2, 1
+            JMP <LAB_WhirlPool_LinearTransformation_WrapAroundFi>
+        <LAB_WhirlPool_LinearTransformation_WrapAround>
+            MOV C2, 7
+        <LAB_WhirlPool_LinearTransformation_WrapAroundFi>
+
+        CMP C0, WHIRLPOOL_C7
+        JMPC <LAB_WhirlPool_LinearTransformation_Loop>, LTE
+
+    ; Return a pointer to the data that was created
+    RET R0
+
+
+;;;
+; Store the circulant tables C[t][x] in virtual memory
+;;;
+<FUN_WhirlPool_StoreCirculantTables>
+    MOV R0, WHIRLPOOL_C0
+    MOV [R0], 0x3cae4e9936b71850dd830f835a27d7b9dc2274e2bcf58aa7a73406ea9ef7c442
+    MOV [R0 + 0x020], 0x733588fea2485381d133875009e46c5be8541f65efa108b193191a6b15d3e62d
+    MOV [R0 + 0x040], 0x5ecc9be841736d27a1f488dc7eb56d4534376956fb1e31f66d1ec2b80b4d4f6c
+    MOV [R0 + 0x060], 0x67b588d5a3e6e95bab37129657307bbd6d6e09de4cd4cc551e79545aa88dc838
+    MOV [R0 + 0x080], 0x027178197159ead8657d58c426fed7d9419377294c304f02ce5cf9259a45cbb3
+    MOV [R0 + 0x0a0], 0x9f651177123633bfd054ae430c3e37d05fd9b95cacb9249ad44dbc40e8cae77d
+    MOV [R0 + 0x0c0], 0xb1f268f33e5f7facc75a9c0463e0121a870ebb274305a32f87aa5d7f30a9104d
+    MOV [R0 + 0x0e0], 0xf59b9305375efb5c48bc90a164a21b9c5f3a7e7b3ee7afbdc561c35744587859
+    MOV [R0 + 0x100], 0x211d6e14ae4efc40d06a41dfd0352975d33a89879b440150c864d3e04a8862a4
+    MOV [R0 + 0x120], 0xb2096a3b5fec248cfe540a82aa5bb6d3b89a700abf3973e10fbd21d6b67a306a
+    MOV [R0 + 0x140], 0xdfca65c41ac6950ccdeba10a1ea85f8b6cb70e1c67257d0ac5f917bb8dc5e548
+    MOV [R0 + 0x160], 0x179252d34b06c92abf8fcf59d530c55813ec7ae94e105f152cb5c9930db7e7e1
+    MOV [R0 + 0x180], 0x88ef5f9542b4e539201a43aad445583147ecef550a60ac58e344e76b24caa581
+    MOV [R0 + 0x1a0], 0x2859827296a66be05c831cde3fa7fbb46449468a7fc37095b85766b8a8907241
+    MOV [R0 + 0x1c0], 0xf615adbb045680ba3dca246d03befb6b45baed5167bf849021245a81b97e08a7
+    MOV [R0 + 0x1e0], 0x023ecff6b77f1f6184d04c195d637d60438c747d0621c73ea7b2fdd59cbf67bd
+    MOV [R0 + 0x200], 0xffa2927e26b362c0eb01d788f3374d4adbc62e92375b2eb644888a2c64a76b32
+    MOV [R0 + 0x220], 0xc704507d4e1421b12df5906d7019766a41a58dd09e3c644805180b48114ed647
+    MOV [R0 + 0x240], 0x7aa82f21aa56bce1de67b65e1504de669eb109d2b9ec29bbca3d07411e29d62d
+    MOV [R0 + 0x260], 0x284ddaf4160b27fdc0e2638797cfd03c48137628f9edf93dcd910a2cf8183058
+    MOV [R0 + 0x280], 0xc22447362766334ab8e2b62061a648512a8c45276beb1d46dbee6a7016846871
+    MOV [R0 + 0x2a0], 0x59226c5a6852d14a32e5b8a524648bff862beb9df717b99a0bcd8fe8f4bed09a
+    MOV [R0 + 0x2c0], 0x888e911bd2e016988890c0a26ad252171015a9a0c64f712592def1aaed9b47f6
+    MOV [R0 + 0x2e0], 0x8b077f2e5d18c81ea1f34c2e3066a0cca5e95a4872502a39988c7429e6e2307b
+    MOV [R0 + 0x300], 0xeb80dce32a521833d397caef191b6d2662e5a3aaac412801a76c32f2226ffa38
+    MOV [R0 + 0x320], 0xecd3930828ba653522f9dc57e8f017f375867400411e24cd1b7d4787b3c89ea9
+    MOV [R0 + 0x340], 0x05c933b9634f55674d5e987e1c316d8338ee81b1ebab158987fd3e5fae705715
+    MOV [R0 + 0x360], 0x27ad9b0d106a3607febb8b336b88e3808a16b1ed2f08fbebcd7cbb89ccc0eb47
+    MOV [R0 + 0x380], 0x415a959e8ffd028f0d977246bf0adf2cf062a8b156060d512553687ec11b1c21
+    MOV [R0 + 0x3a0], 0xcddeb08c1f72c69ed950c1517ede2f6f4c9a7cc9d25b1aaced76086d5f88f533
+    MOV [R0 + 0x3c0], 0x59ba03f0ca652db542ca8b3e2bf1144bd5e54973d372fc4810613f4ce6036358
+    MOV [R0 + 0x3e0], 0xe829ef6c29d6c64371d40cd8efccf3deef2f1dd1f89cc60a3cc3b9b6dbb27ece
+    MOV [R0 + 0x400], 0x304bef8341ef3bcb28305df9695edff10a37d12145f198c74f42b6929bb701de
+    MOV [R0 + 0x420], 0x47b7dbe0ae666c445198ecc2a4886ee56595bb3ab8983899a53c16c6cd591965
+    MOV [R0 + 0x440], 0x6d1c6556b7234ce3d82d51bb3d32c0dfcd3a538d91363772281d59afeebfa54b
+    MOV [R0 + 0x460], 0xbadb3e43efa7a38e55e6f60619d8ce50bad50f0724fd1c727a363a2c2d7a7b61
+    MOV [R0 + 0x480], 0xfbf2d883ddc50543b7f241c8f222369a3f2d124606d406c3acac2ebc703cfd1c
+    MOV [R0 + 0x4a0], 0x65590b538a70f71481504b855a162c508c920498214642cbbd91f722ed3fb25c
+    MOV [R0 + 0x4c0], 0x5ef706d8fa4373344b08fa2bc2f15bed18a66b315f0c94ef54d89316ad0a9a1a
+    MOV [R0 + 0x4e0], 0x3c813d50253dc7cffe74d748952ba09c4cf325dda159242af2ded5e958b0e7c2
+    MOV [R0 + 0x500], 0x7384728cbb32375ba6548c41b9753835fcb3f46cbb8feb0925da55f580821531
+    MOV [R0 + 0x520], 0xad128ad59325986b9b3e5345638bcd8aede1517fbcbacd193b04988e319d7fc2
+    MOV [R0 + 0x540], 0x1dcfb73c221423e508fea00b7d1863429d9bcc2dea6bb47f000cb5ed36283741
+    MOV [R0 + 0x560], 0x797fe5f7afd971e219189efa9a8da89d84cdc77b28655f8703486a58702dd871
+    MOV [R0 + 0x580], 0x61781c309f02b4c83806312ecf858eef2a33f7b9c8b530d2feb0399a6ebbdb1d
+    MOV [R0 + 0x5a0], 0xb3a5d15269ca4152f5420cf1c68f293baac5f9855fc4e1634e4a86e810636948
+    MOV [R0 + 0x5c0], 0xb4a0004bf6e349584f1a0bb50b9dccc6a3e1506f23c98fc7633cc40bd4a4378f
+    MOV [R0 + 0x5e0], 0xc80f82783d9f759d3f0d8bb4e5f9f1b5e8f0d3ee8ab428576693a195bb34ed51
+    MOV [R0 + 0x600], 0xa9d081adbbf09d31ca6501ca8a40ca0dc7347bb2e65748b83f29781fca0d6355
+    MOV [R0 + 0x620], 0xe4770b703000a628c53fe1c012fd1426eab42fb2f7d78f7c4dc2a248d37e2e42
+    MOV [R0 + 0x640], 0xd5bc4d83bba279fd96805a6962278ba099cefaa5e00709548495dce2dfc768c2
+    MOV [R0 + 0x660], 0x052d6f5c2eacfaea422289b7d2c15a409558a933936a43b35e6b6ea5f09de0fb
+    MOV [R0 + 0x680], 0xeff89b06aa493d7b485518c2a8734a4f30902d5bb65ea74230b89618e3579e5b
+    MOV [R0 + 0x6a0], 0x46b1e36412b084890df9c26992cce6221cb76b8aa6d4881d0f29c163385d30f5
+    MOV [R0 + 0x6c0], 0x45a6c43699d7ae1093442510669b485b6f325ee82b8810807a7d793b44051b77
+    MOV [R0 + 0x6e0], 0xa40523cfb11c0ef6bf10dd55fe62f533efa1f5872d36941b4916e6daa7612c35
+    MOV [R0 + 0x700], 0x28b74827dd9b0a8b766c2192ed0ab690fbb6d90f6c6fcddf41d837163d83e143
+    MOV [R0 + 0x720], 0xa7ae26af0f2c415e0b4df1b463e72a9ea1de21ed12b70e9df419ec13898a1529
+    MOV [R0 + 0x740], 0x957418312df74784bfb6262e66f2aac17341e1bcebdeaf64e4baf56f73f2467f
+    MOV [R0 + 0x760], 0x4ef461eb0c2b371dfc7c603e214301785c60a32765affe04911f191bdaa14472
+    MOV [R0 + 0x780], 0xbad50d90afe101a2a18d12dad72c740f2237f108266bc192be8dbceef4bb1de0
+    MOV [R0 + 0x7a0], 0xad1814cc7702dd6b3ddc956fd991e178412b4a9b6024ff9398c712b6af270cce
+    MOV [R0 + 0x7c0], 0x811e06068ba663fb4f60ac6ab503746255daac51573739f0fd58a4ef53d14934
+    MOV [R0 + 0x7e0], 0xf74912e586abdddab66891b76315f582d8d3d4c65d03724a1b606dd5d9c863b2
+    MOV R0, WHIRLPOOL_C1
+    MOV [R0], 0x400d8c3ea37d66badb0056439dd52bc2524f83f719a63c1aeea872813e581e71
+    MOV [R0 + 0x020], 0x500ed395c7426724039903ea82630c8ccf44927cb41456083587b5cc67036cb0
+    MOV [R0 + 0x040], 0x1d90b39fd3d6ef8e880c38e52d9dee8e1119562d89bf8867311538f944b1bee1
+    MOV [R0 + 0x060], 0xf6e30f89bb2f9edb9728dc4f3c08f8a1e7ec99784b89eb2ee45b458a2d1a2963
+    MOV [R0 + 0x080], 0xdbe89e08b66d04316d9d5de4bd8251d37dbd96edea052a629368ac3fa03d89b1
+    MOV [R0 + 0x0a0], 0x36c196eca43016aa5584664ced6d1e50337d2b3b139c16d178189eb4fbf8ad9f
+    MOV [R0 + 0x0c0], 0xd4b90ce27594b3d99a1a82a4451510de39153059d75ba385e11e2602d2b82e23
+    MOV [R0 + 0x0e0], 0x66372783a844c1a2c40df09ddfe01c21a9bc38d33f85062e5f9e161a656dcaf0
+    MOV [R0 + 0x100], 0xbb8f2e6e2cd0776ead75c0250d226ea46e2b8d82d1d19dc22c2d44b67eb9975c
+    MOV [R0 + 0x120], 0x55312d1771b23568040c57ce5162e14013327d14503f98a280cd3ec5265f654f
+    MOV [R0 + 0x140], 0x287fb61196f52140b4d3c7c9c38243adc68852f3715ffa34dc077ea59b47a01d
+    MOV [R0 + 0x160], 0xedf78976472198e53d698c57ca2a340966deae4cb47a7b35aa9b66baadcd2784
+    MOV [R0 + 0x180], 0x091d5899e887f748f84a0de24819b074857b82d544c3745084dfddf94197a9f5
+    MOV [R0 + 0x1a0], 0x1473cf2066618a942eae5ff85af45dea0c522288cb4f863d83c87aef18156c7f
+    MOV [R0 + 0x1c0], 0xe65425bc6bd4e7efc8678b72de5987fb30402d33df43eea4cc92b13ded623744
+    MOV [R0 + 0x1e0], 0x8d33535831ec81ba82b854313dad7287c714f06794516d5057210e48569a9c44
+    MOV [R0 + 0x200], 0x7d50692f042988d5af9559965fef5373b35fbb8278e20df355a925225f09cf40
+    MOV [R0 + 0x220], 0x1ed556b16a1cff19e095b679bdc08022a616c995146271727a17b458dac3945b
+    MOV [R0 + 0x240], 0xc400c400200021e5c3918c273524874ea47173447056f4e96f1ff73ef6fde401
+    MOV [R0 + 0x260], 0x7e5789c640d95e537f1ed1da9c9fb3dc031c238945a0f8cc50c0d124b014e0da
+    MOV [R0 + 0x280], 0x67490c16a0e2c8ad8627cffe1f3d85e63feccef8a12d037905d34aec3e318f13
+    MOV [R0 + 0x2a0], 0x1f33ffd47a6a30e154495ed8a6f4a8735dfda0bbd3d87636c910e46fd8a7b45a
+    MOV [R0 + 0x2c0], 0xb781aec006666c1626aaaa1428cbc1eee74996f7506905c536c1ee6333e64c3a
+    MOV [R0 + 0x2e0], 0x5f62a3e41b180373e1583afee3fa011f3af1ac80307e7b52eb85fb632f34c9f6
+    MOV [R0 + 0x300], 0x295472b98f64ce238961f65240d3d77ed72a51eaf43e05286e1606c10274e2cb
+    MOV [R0 + 0x320], 0xd7e456b067026ff1eba9fbbb77fa10b104342a984c0c062782f642f15fa7db17
+    MOV [R0 + 0x340], 0x505b5a058c625f83f39fbb0a192dea049b3df3dd8f304abc1690d57a89732e0d
+    MOV [R0 + 0x360], 0xa61661a461d8231d1301d66ff013dbc43a88db6a51af4dfd6a6e1854263833ad
+    MOV [R0 + 0x380], 0x66318e039c7050d27debe3bfe498b78b3807548752deb4eb62c9ab3fc28612be
+    MOV [R0 + 0x3a0], 0xf43c2466705fc3de10bcc372861787842e9ceed85388df60860566263d285fd2
+    MOV [R0 + 0x3c0], 0x6f3d9f7db9252fef84d15260962e1604194b9feffdb287f2a355472027d89559
+    MOV [R0 + 0x3e0], 0xa7ebf3a201f483cf9ce22263ca754086763e08ce7df69a196751bc2dc3c6ad8f
+    MOV [R0 + 0x400], 0xd4ccb31f36257c27ea3c38fc82d01e509582a1b74f7a5f84e25a55b910abf0cd
+    MOV [R0 + 0x420], 0x0fe0c3025c75783fbfe305d564542f53b07cf8d4d14c48b976397101e724cfbd
+    MOV [R0 + 0x440], 0xa062969d05ccb1134a5b1311b92550f8a590cea5e81612eb8dc63f4a266990a4
+    MOV [R0 + 0x460], 0xe32a773f613320cc7e2e2860f27b52778d93e675cc077148045bc97a9d2bf204
+    MOV [R0 + 0x480], 0x4312e00ca67d3af611aa01a54e2408dc46d87ca4aa63f3ea11080fc18399c39e
+    MOV [R0 + 0x4a0], 0xe1065bbc20078a790712dec85a091297c03bc192c53ca54a0b9e7cebe4b6f1d2
+    MOV [R0 + 0x4c0], 0x60711100e44b2ca05cfe0f154e2ae0fc6d0ee3de26acf0058da3dc89077d2e72
+    MOV [R0 + 0x4e0], 0x38b7c1ce707550def1dd1b2fba988abddf709db6c2dab26240235b59c686b470
+    MOV [R0 + 0x500], 0xd67e6af2d1f71043b0eaa4064392087385593f301f8a4fb3cbcdc558f4305c09
+    MOV [R0 + 0x520], 0x9406fc22414f7ae7fb7e8bf8db9fa96a9d8d0060f94dcf8827c6d4ca4605e75e
+    MOV [R0 + 0x540], 0x7d517f95cf351cd2924dcef20282b1d08eb7ba03acbbf29779131f8d624b9fc9
+    MOV [R0 + 0x560], 0xaa4d2bb128c2f675b020edac02f3dd6eca9a05539a73aabb15d2c77e6cbce6d6
+    MOV [R0 + 0x580], 0x9c60e0d63d7621cf6fc84f13ddab9759df85d73e01102ea7b225d1539450b7e4
+    MOV [R0 + 0x5a0], 0x450ea4e9dbdd4825f6c7294fd188ed5e1b346a11692b03d9cd89b23178c92d09
+    MOV [R0 + 0x5c0], 0x0d72f3dcbc1e7eebfd1b56bbe4e2b78878118400c428ac9020b45ccfb49f20fe
+    MOV [R0 + 0x5e0], 0xff1698997ef5193496c3d30936aacde7ec18dcf5c5f7c456a8ed1276c2b2474c
+    MOV [R0 + 0x600], 0x6ef43e123ff59d01a8c637bfbc0a65e3e894bb435c4e997c9b617707a935cec1
+    MOV [R0 + 0x620], 0xdc41437037af801f9c27495d7822cdfaceb9633724b8db2c7fde17cada2191e9
+    MOV [R0 + 0x640], 0xaf78e25b89162edc883092635615d601fe188dd54ad1cd0b10919c5bdbae0f5c
+    MOV [R0 + 0x660], 0x7dd7257b1f007e7eb85e5abd3d4c441e0feeab221c508fcf06587651fd8bc26c
+    MOV [R0 + 0x680], 0xa81ae1be37af35370a47f2c089bca1bbd25dcae6c483384a61b54dd2c3a68026
+    MOV [R0 + 0x6a0], 0x4f0c2137f3b60be69cbf0239c48d11c40382171b582fb664c2c834116c27cfc1
+    MOV [R0 + 0x6c0], 0x73b49c478da2385027cce804a22ea4801dfeea11cda93125e4ed15cf4c1df2be
+    MOV [R0 + 0x6e0], 0xe32700a4bea80fb9f47c99a81e5d7ac48eecf4a9b53cb07c3e2e499954a850b2
+    MOV [R0 + 0x700], 0xf8fb167c9eb86f73f6421e2bb41878fddf782c0590e65a09b87d7949b3210872
+    MOV [R0 + 0x720], 0x4a21be0801f2a44e76510abb4f25a36b8f3d40e565f2a22b035df7489cc93ff5
+    MOV [R0 + 0x740], 0x9b78713f06ebcacb4e1819711b4163eb2c5892b35573bbe72cc5077be472a385
+    MOV [R0 + 0x760], 0x9bc4835802616b598911b90c652fde44b64d938aab9b9bc2dbc317da68c1adde
+    MOV [R0 + 0x780], 0x670803a55df5aa9e0c5d706b69d2650df0ca49ab5f77188ff43c5321bdaa091a
+    MOV [R0 + 0x7a0], 0x5ec86554acb5c4c7ece9d6c8a9b499517536ba984fc01584c8deec5c47876746
+    MOV [R0 + 0x7c0], 0x9ca35f819c7541126a2eea5b9b4f034af08c11ffb9f7824767c57c64d214915b
+    MOV [R0 + 0x7e0], 0x442c78636bff3abf589e9cdac7afc8dfcbb5d58188725a9a2e35c6fcfb608edf
+    MOV R0, WHIRLPOOL_C2
+    MOV [R0], 0xc15cf1c2e4c56686b8fd05a923028f204c6846acfe11a7149e5100c6bfe1d0a4
+    MOV [R0 + 0x020], 0x9b7ecaaf0a338e2fd2ab3d6bae33accf1af88c4b03baf25d038c9f99210ddde5
+    MOV [R0 + 0x040], 0x14e913453637cbcf27d3e6144548d67c63f1101616c7b43ab7452b178c5bf6cd
+    MOV [R0 + 0x060], 0x2eecec4a41dda9296376f9e5f6b4b7da057671eb1989207e11e1bd859178f6f0
+    MOV [R0 + 0x080], 0x4548f2c3acb032a448cb47bb4141206306c6b97a0ba89d30a153bad7ed532ed7
+    MOV [R0 + 0x0a0], 0x40120fb4c04acfa11f21b3445807c5d6e4b2c2ea82e5661b543faf362185a48e
+    MOV [R0 + 0x0c0], 0x31ed36bfed96abcf082045292a594d7a6e1f2e1efa37ae6a567be8cd1403bfcc
+    MOV [R0 + 0x0e0], 0x28dda1e8d7235cfb30e57b1d551ffa063e580d39c849ddab0f7716d2de28e9af
+    MOV [R0 + 0x100], 0xf8e6b957fa4656ef76a705d361b3973f73e97a449141db5785b98cd269386904
+    MOV [R0 + 0x120], 0x472bec11d3bccb47e777d9b42c424cda8beab480b3e59596ff2837ee91846893
+    MOV [R0 + 0x140], 0x41ff1b95875f40324578c4523113468b62f63b1b552735d02f38a9a7681abf07
+    MOV [R0 + 0x160], 0x02aed5390d915503888790b122cc1edcb03b218957aaafc74ed214df56edcb10
+    MOV [R0 + 0x180], 0x659a252a7c74888a25e8860d0d4c861adb76354eaefad904c5ca5278c4e7876b
+    MOV [R0 + 0x1a0], 0xf6f91c2743e4a76bcbeca3be71994b6a199ee28f8f393ba256f36ea6c788bb07
+    MOV [R0 + 0x1c0], 0x16b481e35e6ac568b610d242373f0a1498d5ded6f468ed94c4b0ab8905240caa
+    MOV [R0 + 0x1e0], 0x2a657c95be801c2377b87a1e1ef66727702698516b3d48afa2a9ba601ff20584
+    MOV [R0 + 0x200], 0x1f9b07a91b8eaf40450cfc93c2db90e1951ca34cbcd086e5f210d2d27176d736
+    MOV [R0 + 0x220], 0xa1488357eea0e52021601dd764d0b84a2fd1c1c84c9f13a1c0295bc0094dcc17
+    MOV [R0 + 0x240], 0x313e7bbb3b2fbe7b8e3a5bde3a26cdc9b54b2546282af1412099a9d5731b4233
+    MOV [R0 + 0x260], 0xf6688a6b4936e10c452256a97a8bb28ecac0df76eab8c9811d65f9ebe2004870
+    MOV [R0 + 0x280], 0x9230ea94db1f6dc30293ca5ab9dcd6fba4a4dfd85cf9d4de1292c778cff5b96c
+    MOV [R0 + 0x2a0], 0x82df56af717f429e9e6149d14fc8d78fd5c4346001964d3bb5bc171bfea02f1f
+    MOV [R0 + 0x2c0], 0xa60c80fdf2ccf1fd04137e3e1708328ecef5df0ee263ec3529e2bf69d61d70cc
+    MOV [R0 + 0x2e0], 0x58fc94c448e123d69c228d53971dd0a9509797fef48dd589e3c7a5a21f297aa4
+    MOV [R0 + 0x300], 0xb3ebf91482a5f8a5d95d14a5c5c0c819f8eef9fe0eec7c9de23e10c0cefb4242
+    MOV [R0 + 0x320], 0x645920b464a13c42c876332a9d1665c14ded4abe6f7d0d2f1c9c4ec90cf71e96
+    MOV [R0 + 0x340], 0x82ab32cb8f80898258837433bf9a54e1eb812c99dff0201f398c0c624cf3db77
+    MOV [R0 + 0x360], 0x1f1d1f8ce64ba7864c5fba7e9ce8bee514f9d97a1148a6ce8f76fa554541598b
+    MOV [R0 + 0x380], 0xd9225723e803572a9e2d47ee447a9de612524502240048eb58636b1a3aab851c
+    MOV [R0 + 0x3a0], 0x945aec0ffd38c40175928782aa03481029858913884111185e4868ee9ddc85c0
+    MOV [R0 + 0x3c0], 0x003eeea96db609b77c8fe4692ecc39287816a29cf81b327bff914f2bf13fc28e
+    MOV [R0 + 0x3e0], 0x7cb68cc46279f9e8a78eea66c7b2d40c69515e33a8fa674314ff494ae0dbab67
+    MOV [R0 + 0x400], 0xbd275c7ddef488de3acd2dedaa0ed0874dcccb0d17ff7f05f07143703005267a
+    MOV [R0 + 0x420], 0xed8090a4de37244b19ca47f2d14207d87479d6efee5264c3cb95e8ddbc8b7d4e
+    MOV [R0 + 0x440], 0x50224e9d31592edc79ab5e62e67bfa29dd1412e5583e4e7a581a8215adb9c32b
+    MOV [R0 + 0x460], 0xac5ede4ef00f3b33f6cdd4f4a01320e9d42810fa06f100366b410e1fa42a48f1
+    MOV [R0 + 0x480], 0x2eee5cb59702748850f81bd02ac79bdf71fc9d07bd9201505998296df968b27b
+    MOV [R0 + 0x4a0], 0x8da68a24bd10f6093d1da07650e63468f24544a69a726709d4c1d9f2a7676fa3
+    MOV [R0 + 0x4c0], 0xc063ea91e664c8549df6f6d2e3821ab363c3c17819c3e084356d9b3d228201d9
+    MOV [R0 + 0x4e0], 0x002e965faeecf1baf374c690715d6aa62f949883ffd7f6f31046faafc3556b55
+    MOV [R0 + 0x500], 0x032fa9845073e59a710b30cce9e2d3fd268b1edb38ecab840d24baf95f0cf444
+    MOV [R0 + 0x520], 0x846c13d24f7884892475fe5baa5373c4bf50a37089f2b27e5c4474180c3bb58b
+    MOV [R0 + 0x540], 0x9f23f071c0a10541e090465fa901d759a09b012e55e1b56f0a44077dc8a28ccd
+    MOV [R0 + 0x560], 0x20afbfa7f5feaf2e2d7de84a7a5bf6a6aa67ad58d79494f54074646d4ca99b52
+    MOV [R0 + 0x580], 0xaa8de165e0d94ef62ad561bafe1ccf1d7109a92988dc69a7b5e50994ba484fd7
+    MOV [R0 + 0x5a0], 0x94c05e4bace8995a2c2ed5937fa1543a77a5fb17ef658d47a6de2dc44284827e
+    MOV [R0 + 0x5c0], 0x156d76a2e42c423a52216b8cc888ac4e7cc6cf091cb4ce58981bfe33b144f38c
+    MOV [R0 + 0x5e0], 0x3b34b248dfba255a7d6c1bbf09fd3339259adb69f1e0f968a4c0b31250b4a871
+    MOV [R0 + 0x600], 0x31088af77925c9624c321923c2a76c56412fd7944cac948943d5f7e60252baca
+    MOV [R0 + 0x620], 0x1447c14196536e6d960eadd6cffed0eef83d18f23a36841cc3130afeb5aab4d2
+    MOV [R0 + 0x640], 0x255333a2a3a4ed4b966f38be49c92b420dae2f9e8e3ce657c20d28fe3c3f2cd5
+    MOV [R0 + 0x660], 0x9f46bcbe253278a5e1c583d9c753e596ed582e0a38a4bea8191117b346ccf64a
+    MOV [R0 + 0x680], 0xee1ae9aedac6c90893af968eaf037790438f69d7e3c99d2b4c01f1c437aa6afc
+    MOV [R0 + 0x6a0], 0x0ebdde9546d5a9707cec3097992b35d7c7c97d16d55ae68c0eef61e79cb454d5
+    MOV [R0 + 0x6c0], 0xf479a4d7a89692ebdad387ea0836899d584144c6bcc0007b596037a9ef0462a7
+    MOV [R0 + 0x6e0], 0x0ea4c001c1e0fc6d4d19aac11083cd5db818a12331067f0e6c5df8425e124c69
+    MOV [R0 + 0x700], 0x8c9b8178f51cf1e051df4410d8f1696b734f01c8ac0ec11e5219ca98b3b143b9
+    MOV [R0 + 0x720], 0xbee2a02036bc80c06e549d2fe1800a5a4943f90a33bdf82adfda95f85d92bfe3
+    MOV [R0 + 0x740], 0x9ee8e3434178c6a237508d4631d67cc1e3a68271dc86c14b62136ee5156378da
+    MOV [R0 + 0x760], 0x4a4e21db5da0085355f489df38f87620e3ce596a6536d84af4914ea2bb8f5de5
+    MOV [R0 + 0x780], 0x36d55cb17fda90d65825775a68b7163b30811c4554eb171f579425145147e38a
+    MOV [R0 + 0x7a0], 0x430bf60e0cd98a9a62ec59eacad6a1ccfc095b6eecfb7d404bce583d5445c715
+    MOV [R0 + 0x7c0], 0xb3e992d33c110429c788e6187ebacb0cc52987a7044c39a062e5415e2adf2bce
+    MOV [R0 + 0x7e0], 0x18aa600a6a860835919d2cb41041f6f297e086a47c881080a122a770ecdb3ac0
+    MOV R0, WHIRLPOOL_C3
+    MOV [R0], 0xab945361f1f2e872fccd77a2d70949df1bc2e6ddc1cf521df8a05f82a1842b00
+    MOV [R0 + 0x020], 0xfb62ca1bd0a19f3275c654e6b1015eb12b91e998f1c59d5c5adee5d82022c133
+    MOV [R0 + 0x040], 0xe62a67325c5e598bcb1e3776967a071cb43cd34cd84df2216bc1f5d7e6b8ac60
+    MOV [R0 + 0x060], 0x257858e5db960960d8f15964223113936c37f467caa9cb727c5436e84ea3fcb7
+    MOV [R0 + 0x080], 0xe46e42161f391d41697d33112fddc8a7607bd1d95784e38814d1d9091fe8ca2f
+    MOV [R0 + 0x0a0], 0xa026a02bc0b6ef6a3d6f6a48153a1fb0a33d9b6403ce51a0360e7367ef2c7480
+    MOV [R0 + 0x0c0], 0x0fa7da43d868872ef8ed7e22a1eb80197225ac9fed6c7f3d798443e7990d81c0
+    MOV [R0 + 0x0e0], 0xc68fe1d7fa426657bf322f9ae0acbd9b3422eab6130ca3f10123f222a522fa23
+    MOV [R0 + 0x100], 0x54d7c87f16d0c430ae0f6d7273d04109b91bdbd33eea9711f08708c5fb57ded2
+    MOV [R0 + 0x120], 0x97b1f92399ee4b80faba80389a9684a4b787646d4b813645cd5e57475ec3d28d
+    MOV [R0 + 0x140], 0xcdd86a032d5e0e76d493e9c463fdff2847ad1bf7cb813e037e26f7067744b166
+    MOV [R0 + 0x160], 0x8689db62939cb610fc7fb822b01aaf76453b3dbfbab78a8f297b6f6d1dfb6555
+    MOV [R0 + 0x180], 0xd83a20cdf32b942011198714add7a4ce7cc1e76a296fbcd376b36ce31c16a40a
+    MOV [R0 + 0x1a0], 0x048592c47fdd858866f93df0ed72cc03edbd3cfb40fb0beae8824a348be84c1e
+    MOV [R0 + 0x1c0], 0x401490a1a052530aaed420859fbeeca17aaab8dd6bb857facab11b6fe6e30715
+    MOV [R0 + 0x1e0], 0x7c1a8b46c37a31ab9adab3cd19fbf484807d009a66c37e0d89fb067c3ccc7a05
+    MOV [R0 + 0x200], 0x8757459bb3b246ccf3bb2e611d638fbb57a656cf02f39966f9b7a62828d1bd6b
+    MOV [R0 + 0x220], 0x671dec8b8b7023c8f370792c6c1e1b175f0f311d4945adf5e623b7cf1701bb93
+    MOV [R0 + 0x240], 0x65b8f409ea0839b99c24071e0fa6908c590e060349ac2f38bb2838d9c4449903
+    MOV [R0 + 0x260], 0x1e0441bdb623818df89c361a185b45f9a713c229cc2b69f47e0f1079f4b051a1
+    MOV [R0 + 0x280], 0xacb7a894c0a04b2411efc37cffad1bd70ae01ef56a959dd514b57f77df0d79e6
+    MOV [R0 + 0x2a0], 0xf0d79adbaf5ea18804873e3f8cd774cc81916620fdf8ed0d6e29fe2d093b9c93
+    MOV [R0 + 0x2c0], 0x3be8b0aab4152eb6f579213756912db1598ac4e5bbbe6278168475c5e9e9d7d4
+    MOV [R0 + 0x2e0], 0x39fdbec24d5f6c90ba24dbfb937e4dd21a272e9c2915fca2b170b60bb91a08ba
+    MOV [R0 + 0x300], 0xc71239bf46e62e8d15567cbe0afc2115f614480657b3b12919aaf959ac11cdda
+    MOV [R0 + 0x320], 0x41e7fe9a34970727ff5541cb1b14c0770627f416e1535715e39d0521de397549
+    MOV [R0 + 0x340], 0xb80241dfb1e804be8a66d2d834aa2916f6de1da61d65b96997a5462be655e7d3
+    MOV [R0 + 0x360], 0xa67b129b0429fd24cb2b7c4e371967b7d87e119fbe277d254718a133558d3cf7
+    MOV [R0 + 0x380], 0xe5baa5a01c1de4951e586a0d32ee8e9f05c153119ea9da93f3a75b560b31741d
+    MOV [R0 + 0x3a0], 0x3cbdaed6d2e22dfa8b7122e2149ef8e71f82260de5ee42a6059e996dfa2631cb
+    MOV [R0 + 0x3c0], 0x2c304f7e51a6741afc368b496292ee2d54630c5715ea9f5abb18624ccd40c3b6
+    MOV [R0 + 0x3e0], 0x5ab3f2fa44d8e217cfc26053a3e121b52c9d8f5c3f7ec1d9fb5430d2966d90c6
+    MOV [R0 + 0x400], 0xf32e8ed9168c46e60bb6f61d1ed3a2aa220f1526d1625bd8806e99e2b351e281
+    MOV [R0 + 0x420], 0xd57d2a823cc560d0b48b101a326c923e5d723d3a5a2812425d0adb1dc88fc4a9
+    MOV [R0 + 0x440], 0x6dc04aa0a5b331646c0a9efe43b3ff0b530fe66f3e163afdf722700e2ad3c768
+    MOV [R0 + 0x460], 0x59851bd5552ada29ac1e49de1087c1cce6eacd3496ef1edfa5e057d9850def11
+    MOV [R0 + 0x480], 0xcbd6cd8696fecc5f5946385b42ce1b97d7febd512758a45b29060bb558b52d7e
+    MOV [R0 + 0x4a0], 0x433dc807daf8a39ef9fbffd06af50731875d8ad2cf9ada50f465c5b463a003bb
+    MOV [R0 + 0x4c0], 0x175249492b8de019758f541879f5a616cbdb82c0b1abb8463f7de0b6c757c018
+    MOV [R0 + 0x4e0], 0xeec9048fd217102dfe6d64d6ff01ca3933d3db4047a6ad50c8d643d093cf16c0
+    MOV [R0 + 0x500], 0x23670fe2c17c475e4356aff234adf15440f21868355ef7785f0277995c42d0ca
+    MOV [R0 + 0x520], 0x43d3340cf6f80c197a304d0478a6eb79c516fc2203253d463108317a4a4a0875
+    MOV [R0 + 0x540], 0x34c184060179ae546976d856059a37bc6d6442ba30a2a9d77f2d1fd2e2381024
+    MOV [R0 + 0x560], 0x89ecae355fe05e3f5e38db29e2ea10c1c0e6297ea96c0cca646964ad4d95a0f5
+    MOV [R0 + 0x580], 0xeab2a1a9174a817ebfb62648eb0c870b74f8d262b462d7fa7a4fb95635132ef2
+    MOV [R0 + 0x5a0], 0xb69519b0d8378543372cb20b938451ab77bb398a4b744fb6087b36a31d1e9682
+    MOV [R0 + 0x5c0], 0xe9047282d74d6b64ed3768a5b5acb3ad8252167f09dcfb127ccaca2b8f0fce77
+    MOV [R0 + 0x5e0], 0xe8fa297f25b183299d672d412efa1e7e7e8d7c968504dc89a5bae9c8107732e5
+    MOV [R0 + 0x600], 0x5da81a39b5b6bb54653d0bcfe0a824f5c4f8c752af64db0b3d9bdfd04f146646
+    MOV [R0 + 0x620], 0xd10ef75c4c8b6e4c242bc6b852ccd4600d5e5664ea52fa497c6cb9c373979715
+    MOV [R0 + 0x640], 0x215ec7c038f270c6b3b74bec76b3ee0c9fb1cfc103c37fced7f80a9005ada7c2
+    MOV [R0 + 0x660], 0x62426e9112e9cc50eb6ce9e45cf8714c939dc22e95e655774391d01367db93de
+    MOV [R0 + 0x680], 0x14850dfa84c33b26b3c29eec1792247e78a228e22e26f8d0011a3817c4a235cd
+    MOV [R0 + 0x6a0], 0x3173815a87d360bf612b2bb21ec180edea459aabc2b53212d2213ed331482306
+    MOV [R0 + 0x6c0], 0xe668ed33df0e34489752a146cde37aeb21934f4da05931324daac435b6d67ef5
+    MOV [R0 + 0x6e0], 0x11ac0213e0a6f08d20d01203ee0e0fe6d9a537daddc38c661e6119ed3e912b74
+    MOV [R0 + 0x700], 0x69bbf1203c424d6bf6d6469b785475b3b58bbb7ee189ffe53946141e9dd89eaa
+    MOV [R0 + 0x720], 0xfbcc166e77f48c930acb37a109285dfdb20ec784b69f8882eb80c6ecd8836c07
+    MOV [R0 + 0x740], 0x33ef339b1f92ba336327b32a3cc0afae0779fc80ad17b0c6c41d66234fac903e
+    MOV [R0 + 0x760], 0xbf1827269a7f54bc3fa1e6c95be485863e85afcb1e4beec96e827451294f4e65
+    MOV [R0 + 0x780], 0xf7f3c086fa623817333c3dbade692379dfd7e825080d35aa27ab18925d1afdab
+    MOV [R0 + 0x7a0], 0x1fc82849a38c81b9186be55b9975059a0bdd01d7c47f56e054530339a75c858c
+    MOV [R0 + 0x7c0], 0x7c7ba0327afddcde1de7981507f18ed6782aca995c0b884642f98e269de6e6d4
+    MOV [R0 + 0x7e0], 0x218f5b829916f5aa205d91fe5d8a3b837132847e081f7bad4cb948bcde86c66c
+    MOV R0, WHIRLPOOL_C4
+    MOV [R0], 0x8b6c308ca798128f70ff35c7430e10f0a23a1876e67a974cd8580a27d2296324
+    MOV [R0 + 0x020], 0xe3e99bfdd431e6f07dc7d9665c3660cb8b3d9dbac77a48e5dfc1ac12211329e3
+    MOV [R0 + 0x040], 0x26a52a034b9f58f3c282a119ef2d453c0e4546fbac9011e7ff487e956a20e76e
+    MOV [R0 + 0x060], 0x194852e4ee2647f43fc42f25635aef6a0e7bfe81d14dc8a9777a753ecaaee7ae
+    MOV [R0 + 0x080], 0x8a5b805e9167e16ef655793d9772666237bce7eceae57f4eaaff8bf74a507867
+    MOV [R0 + 0x0a0], 0xaa67240770a82c4a2d3a3ea924edeee1da03963269185fd605ae8b95eeee0e1c
+    MOV [R0 + 0x0c0], 0x51f852e162ba5f1dddeb791bcfcc9675b1a1870a70056152f1f0c4303228914e
+    MOV [R0 + 0x0e0], 0x356e54729a506b5085f38c6357a7aeb8cb8ad320f172f186585965fa6bf0643a
+    MOV [R0 + 0x100], 0x856897f97ad23a9cd27a0709f0f453a6db0da9687df4aed18751de1b1d885871
+    MOV [R0 + 0x120], 0xfc5953313af5ad24c72452b0eb4adf2b7c1320dd7dc86fc58b0fceed7f3c51d4
+    MOV [R0 + 0x140], 0xe452a7197d2795b075516f51dbcb11a3a1226d8ef5923642114f8e4ca9b0e900
+    MOV [R0 + 0x160], 0x99077f8fe2f3e69415bb101fbd48fb339bd28bf83f9ff6bcaa83052161302e9e
+    MOV [R0 + 0x180], 0x14f2a5851618eb2638ef7b47c283b53426ce9eb6b60f537f7f7a0d13d0392bb1
+    MOV [R0 + 0x1a0], 0x02978a87ff3f2136ee939faac55ec25047a79bc413e1026a99cc9f9efa5d1a48
+    MOV [R0 + 0x1c0], 0x23bcd1d1b167f7027736d4714b2c95dc6139bd272f127663d5b0301958475762
+    MOV [R0 + 0x1e0], 0x6d8724eb749827c555a6c0069f9579c0aa9c31a0984cd10b07a129bd4125a63e
+    MOV [R0 + 0x200], 0xad1d32344e0afc9130e2db25d2e01499e8cdf187292b5778ce7af3d1a7124adb
+    MOV [R0 + 0x220], 0x6d81ccc711444ed3dc702f15fc6be1f943d759b85b16c2d2a280344bd2071b1b
+    MOV [R0 + 0x240], 0x16e010996317cdabbf025c2a1a3a93e0611ef90aa9dca8efda18ae3eaa94b047
+    MOV [R0 + 0x260], 0xe58fb00a457a974bc2b7ff22992a168ab27b7ba6941e3857e573e1f7d6b7472d
+    MOV [R0 + 0x280], 0xc17adf25936d62fb1a89ded3707413e3f9de83277934206579eee2ba1cafb9fc
+    MOV [R0 + 0x2a0], 0x1f8e14574ab53435c1549f4d61bbd7e0d80360f32150767947152d645a5d7c84
+    MOV [R0 + 0x2c0], 0xff1d020314cc9cc8d2942c761926de1d78e60797bb5ecdd95e26ffcd0be00c3d
+    MOV [R0 + 0x2e0], 0x030420ab7a262a2a1fa95cb4e1170f77f4ab1763e5206847f7c14307c06621a2
+    MOV [R0 + 0x300], 0xdbd7d7770d364f279b656ac01dfc84a79c20c3f7c027376f944485bc85210a61
+    MOV [R0 + 0x320], 0x96da24742a0f00868ea62ad4391c0eb810966d873fa4eb00ee3d0a94d9577c52
+    MOV [R0 + 0x340], 0x65965cc33a76e3c59f73bc27f9d29babba00318d8c5d53b89af42f5d63e26e10
+    MOV [R0 + 0x360], 0x3c0f793c7f81f5ceddbd27151d49ac4997983deb963f325998d8a3a9bd06cb86
+    MOV [R0 + 0x380], 0xf0cfc07d2bce2b37d0d2c1ec01ed7d8cd1e9b4ac11d80a6865850346833e3b9d
+    MOV [R0 + 0x3a0], 0xa4af11023ee4b877c02ef209a4a9c2e0a616e3cd20261902a14e98482c9b7281
+    MOV [R0 + 0x3c0], 0x6035de142c24c7ad1d18679b9033f71706bcfddc3d3c972f9c38e538e77cd84e
+    MOV [R0 + 0x3e0], 0xfe039da7004194ac8b4fa124913d0e4a7244508671590551875bbd26433f92da
+    MOV [R0 + 0x400], 0x31c8272bee82e2b32e1cc8be5283be39fa6f82e8a8df15554853b802ff2a18c1
+    MOV [R0 + 0x420], 0xeb6f8d2658ccf287d38caf01a4428e9763bc6ff19ce36d6847e5da63c04335ea
+    MOV [R0 + 0x440], 0xa94b552bb84da092add051ffed769bdd40a6c7d5426897c8646117116c1a636e
+    MOV [R0 + 0x460], 0xf58b2b008e2889bd3be0e633f3c546e2171ed94ab8bab4b8feee1bb8e044f149
+    MOV [R0 + 0x480], 0xcf647c04e02151a98a628d071122492d95dbe8309660c00714947ef735a1c313
+    MOV [R0 + 0x4a0], 0xf9bf524c28feb9c868df090c641193feed61e6ac80baffab87ff3773f6e0392e
+    MOV [R0 + 0x4c0], 0x200205574b2f7842f17dff01e82fd152b1dc4533a33c5cd4f88f7c4f7b0ab3d8
+    MOV [R0 + 0x4e0], 0x78afa6222b81da8ff80a72fe07f0e61cb8a48a53e42bd286f0c4cead9ed47a59
+    MOV [R0 + 0x500], 0x81fb48646b0955ec719d9e7451be568ad863ad9e71edcaf83275040c03e24e7a
+    MOV [R0 + 0x520], 0xce5e6040555472d89f9f9b74b58169ebdddde5042419bfcb16aaf2655777684c
+    MOV [R0 + 0x540], 0xf54bbef0766f11c7a880e22a576b7a40fb99e08b61388a583e5953d17e76fd58
+    MOV [R0 + 0x560], 0xf855f4a0ad63554fe87bddbe175aa5555d77527802e82bc455756590bc7d996a
+    MOV [R0 + 0x580], 0x30c015afe0157759eeecfcd3dd7f08de395c5654426562002a727761add786c5
+    MOV [R0 + 0x5a0], 0x290c54107c47fd40c8de7d0c184adc5d9c8091983ff0dde3e516f7046a85c2b4
+    MOV [R0 + 0x5c0], 0x77ce4059b6893267a0dda32cd14d69077e7560a7653050ec64f04ec9a820d747
+    MOV [R0 + 0x5e0], 0x26dabb9daef2b4f6eb72b969b0b6fc413acd2c7236a874fb9a1801886889a071
+    MOV [R0 + 0x600], 0x314b55fd8b3c9c634c790e1566bad9f6ddd3b70ea0d3a445a57bc93cd1e8c4ff
+    MOV [R0 + 0x620], 0xf35b5f49ab5961dd4307294286e63f4926972b509007518197b64b1253a09230
+    MOV [R0 + 0x640], 0x34fe691e981b4f1e366e11a2c1edf991cb2a0250190be8c101d0cdd5a433a77e
+    MOV [R0 + 0x660], 0xcfa6f22d15bf7c82980f17ff13c9415e5ad1ea2bec21504ad13acf4c9a7d7e51
+    MOV [R0 + 0x680], 0x4ba6db0f5c53f9493d039be5873df7db6fc6314c3c30339bfb27aaac29c1249a
+    MOV [R0 + 0x6a0], 0x00d36700dff24b3cc888ab1c4c683e18e36ed13759e3acd9e01ae8e9549b03ec
+    MOV [R0 + 0x6c0], 0x09aa7c15bab7cfd6707d5141a76f61d90846598ae5b425a44f1805b02bbeb6d3
+    MOV [R0 + 0x6e0], 0xe8cb5cb75d2010d7086ac9dacd93fa229bf8134b9351720ed5c9723c2ccab6a6
+    MOV [R0 + 0x700], 0xecb2dbece32ae7ae09d39b0cca711a86ee4667d00adc3a43a2564e3ebc297d55
+    MOV [R0 + 0x720], 0xbf65d52cb80db0e71c195ea92f7fcc33449debd81482ac4c474cf3b037f72a02
+    MOV [R0 + 0x740], 0xe34fda3527c370f77e2a3656171fc126ca6351f589ad894805dea7391f75770b
+    MOV [R0 + 0x760], 0xd43dd217e011bd3a8c6270180eb02c78cfdbce877c6598bdd73e537bcfbd00e3
+    MOV [R0 + 0x780], 0xc959c11e2c801c83c4bfe6e7056bb005b1861080bcb7794d4ee041d0d134037f
+    MOV [R0 + 0x7a0], 0x6fafe34d7148fdb599ff3e6effad37628277eab87695c3bb8a613f0a2f1b4004
+    MOV [R0 + 0x7c0], 0xd23aa852191b3d943d35165d7b58688754db9d79a164407aa4a7708c06be51a9
+    MOV [R0 + 0x7e0], 0x6daae406da7dca92362bfacf81daf6c44295e7086c539af178e3f46a73cec41c
+    MOV R0, WHIRLPOOL_C5
+    MOV [R0], 0x3cfba4ad1fa2a7d779b295be0a56d776a6a3e06f6cd83d05bf43a458f3441a19
+    MOV [R0 + 0x020], 0xfa76a120a643c54334e2d00b13f39f6797cce9c346ffa1d5ae40950634267f57
+    MOV [R0 + 0x040], 0x2ec4f31a8b0f20b66fd0e8f9f0af268eb3a63d8478c81b8343f33ca707c4d74c
+    MOV [R0 + 0x060], 0xd480b32960de7f77ed20e3e554328c36cbe501e8cd8d3aee665f05e5822a5854
+    MOV [R0 + 0x080], 0x7a9e9ddf5d9e0070720c336a208549933cf6835cc55d2051d51ce1487fd81f14
+    MOV [R0 + 0x0a0], 0x9d6e8355cb905029881886f69cd0c91962cf03e20899104d05e0c8778c833af2
+    MOV [R0 + 0x0c0], 0x602640cc03e3f0de4653f51fdb801a9892a7020c507c30a741fa9e6471bb5385
+    MOV [R0 + 0x0e0], 0xfbebdea194268e8bc33d3d50b846dc520880dd63a43a2ec52c7365361aba4dfb
+    MOV [R0 + 0x100], 0x275cff991e317462483fd867fa6b1e9228b7e5441aeb7fccef545aaeb82dda85
+    MOV [R0 + 0x120], 0xd1a49eca8c3887a7ac6681db7d6c9fe7e50b1e26f4fd51f6cf3efa280360470e
+    MOV [R0 + 0x140], 0x8823236249963b860b1dd3b635f3a995bbd633b64564e1b3236101e1c5e6f8af
+    MOV [R0 + 0x160], 0x10776543c607507846f31fc21c4e5ffc27c6968b821e14e736f2b113b74b482a
+    MOV [R0 + 0x180], 0x563e88f454ed85d139659134f0f3f06464292318f57e1560f96898b19308032e
+    MOV [R0 + 0x1a0], 0x09b8c83c68c26fe0303be5b20b9c9be9df90252456f4e45ca11a4fbb75993b76
+    MOV [R0 + 0x1c0], 0x6192e85ea0af721ff5a537dbad6dac77f5600c992b996218996210d84942e671
+    MOV [R0 + 0x1e0], 0x82207a87f41414080867264d261d22b96a9dabed99d6fabb5991b7793aa22a87
+    MOV [R0 + 0x200], 0x86479f9bc0c56c9db7fdd90bfbe9694dda55ef3192bd3d5b7d265c77ec76002a
+    MOV [R0 + 0x220], 0x82d35dc444127d697e5596d7e867e18ac3d45c41b4bc5f4dec39201379370bf9
+    MOV [R0 + 0x240], 0xa1569e49cc71a9ab60148cd33cd47263c08900c738d3db78b7e607df9ac9c45c
+    MOV [R0 + 0x260], 0xfc0db3da23b912985aa8bf8a2e21c14b5d57723d42d4995d4cada965bd8a20b1
+    MOV [R0 + 0x280], 0x38d517fe9ac963ced95b90d174e9f267c3f14ba400376f30d5d8e2efa3d3ae8e
+    MOV [R0 + 0x2a0], 0xbfa501c7bc25bfb0a52d7769d92dc906a9b6e7de761098da670f36e678a5a942
+    MOV [R0 + 0x2c0], 0x6ff946f9d77836cbcd56e20c872f907a3fe84373255ddc65f7fe33085ee1c9db
+    MOV [R0 + 0x2e0], 0x2e99d5bdc09a48fd5a8d6f88de4aa765866d9f441bcbb5e7051edd154af4ccef
+    MOV [R0 + 0x300], 0x8befc9c06e6ea35c288505613341d6b525bcad83761084ab6ea1ee1384dca6c1
+    MOV [R0 + 0x320], 0x1f4e19654e99018ba8a8b1357234bf814c01eb82378f27b6d9d95dec41ea45a3
+    MOV [R0 + 0x340], 0xd51537e2ab9e7cac9252f2b086dc787a4aaece023f2d2f085e848fe552f0d6f6
+    MOV [R0 + 0x360], 0xdecd259bcb9e2569c0c4d4f49ff2c9f4cc1c1004a6552d9725819cf733a62e51
+    MOV [R0 + 0x380], 0x97e3ca2f9e2adf32fc6c8adce8eb91c418a306b9ac0d8749123aa3fb4161c1dd
+    MOV [R0 + 0x3a0], 0x05b1f68bec83e1b6cecb1615c9c334e7ef9e11d1fd439223ccc82ab81afa46cf
+    MOV [R0 + 0x3c0], 0x9cfe8741b3bc7d4a9988f99f1c295e50c2fbce7ba196ae24f01edfbdbb6a9006
+    MOV [R0 + 0x3e0], 0x28e194c61328f41013000c32517c6eec8d5b6b002555e937a22045a6e21aa2ff
+    MOV [R0 + 0x400], 0xe8a8b1545995f619d96ad482675125ba33351c1885097097e7dbada9e10c6a9d
+    MOV [R0 + 0x420], 0xdfa7a2401241a3e1091f868416250cd0193534c0a6801eef91d0f67ae9338c16
+    MOV [R0 + 0x440], 0xe159865c7ef2fb0ea07dc1f71fd2c19d64e10255be7661fe35c174ba67368e3d
+    MOV [R0 + 0x460], 0xe0fa978e450dc14fe8b63f23b0c2cdc625102de2fe41ecef2a4d9c7e50885a1e
+    MOV [R0 + 0x480], 0x5142d8440372caef0214758af46fe1aeba84245c760f59d74674222cc98df0f9
+    MOV [R0 + 0x4a0], 0x68214fe868ce8071008d308c87a35d7ad3fbaf7301ac827eb2f13ce4a1b21f25
+    MOV [R0 + 0x4c0], 0x9b09c7a21f56643c19d407d6400104af4b17d9670f4e5d07aaa6a7e08bba8a31
+    MOV [R0 + 0x4e0], 0xb866feb061cc72e926ee95d296157a0e7ba72eecdb38c6b11389b70313e78e31
+    MOV [R0 + 0x500], 0x3ef924270b40eed932d4e96e46b0f8d454d5746a3606903b9be3f53ac9c636a4
+    MOV [R0 + 0x520], 0xe13f46d853f6b9bb4c691a9c5668873e465a0e048a67db7a1883a236c91b80c8
+    MOV [R0 + 0x540], 0xdc369e3c115e45844fc5e6069db823bdc609509b4839133df8c3443352699156
+    MOV [R0 + 0x560], 0x85c76f532f2a04c2d88a87397b725569b230a8cd3930e7f24ee8cfa79dfb6429
+    MOV [R0 + 0x580], 0x37199f902302818bd277c9ba978c6b21702c50aa8aace6d41efdeefdacfb04ee
+    MOV [R0 + 0x5a0], 0x95115cabf67842ef6afcebe1fe8e879587aa6538bc01374228de916311e59f8a
+    MOV [R0 + 0x5c0], 0x71b5962d47320cb51292f34a9d5850da12ff60f2450916bc0c53c0558eecb5ba
+    MOV [R0 + 0x5e0], 0x084c4115c60ff47cfd2b351867010d5b5fb942e207fc3d0c8b6054cafcf38567
+    MOV [R0 + 0x600], 0x12aff87966b3ace610ea6698a1ae316da4ee358327dc52c0f62f4754b6b5734a
+    MOV [R0 + 0x620], 0x4bdc903e2b12e941c906fdf342e1ceb348b09da5850573c5f16f377105ac77ea
+    MOV [R0 + 0x640], 0x0da22804a435b92dfcbca3868fe3f8a4094579cc994183802b850487aa04e5d8
+    MOV [R0 + 0x660], 0x303da596bf560fbfea083fc9040a5b84c3babde4b2bf2c590ed1c7a6ca89d4d2
+    MOV [R0 + 0x680], 0xd3a744579852e29671851242a5d186d0dd83e12edcf6e6f35f2aeba0ed9bd724
+    MOV [R0 + 0x6a0], 0xbd16902d5b4a0c2c326690b8d5e41554118d2e63ba9cc3a2b76d5dd4155d28b5
+    MOV [R0 + 0x6c0], 0x29956ec4af16a7f7c84758587c47c396466c7905e8d9a577dae90a42d467447e
+    MOV [R0 + 0x6e0], 0x43aa7f2306eb4bccd133a7375521167d84936383604571fc03ee104a631592a1
+    MOV [R0 + 0x700], 0x0c938313bce0be2af042d2ea9b7963a686bbc1392a41ed2fcf05f8a48db9da31
+    MOV [R0 + 0x720], 0x13d341c8f554d1ce5bf14af34ff2d4f77aade78318b4b120bb63f0434cb937fe
+    MOV [R0 + 0x740], 0x3184ef295790e344c72affd1e9ec8af2f881fc3eab449a0776cb6ef248cb674f
+    MOV [R0 + 0x760], 0x718b4e2fd49428d6c07d22beb4af1fca48f86a35f827452148653f3c56882ba8
+    MOV [R0 + 0x780], 0x9e475088cc7bf56df37d6fa5c3ab61083a0d36095eb3e73f2d973b0280b69320
+    MOV [R0 + 0x7a0], 0x5c1322e3d02fd94d5cba5ccca937b69b09e5db5464168898cce170837dca19af
+    MOV [R0 + 0x7c0], 0x766a7244301113505f7333bdb00b5a86d6e20b9e03978168cf2764d7ea84ee9a
+    MOV [R0 + 0x7e0], 0x697223d89a6d795b15b88952cac066a62589148ffadd2080fee4d7c2c8e1c100
+    MOV R0, WHIRLPOOL_C6
+    MOV [R0], 0x79c22a7bb74d1f56ec95a959e6b09bab1fa77a4c026baf7413e24bbbbd0c8bb1
+    MOV [R0 + 0x020], 0x958ece2608d1f65fd4f8876ef7e7746efa9dffca5844d6a9b4568c4e59acceb8
+    MOV [R0 + 0x040], 0xc52d344e6abc77b4858a06c55d816ca057a5d7873b9d53feadc6a72f39cdcbca
+    MOV [R0 + 0x060], 0x1da39b34f2bbc467f584d8f942816b7b30988a777ae44b6ea897d34652c09e19
+    MOV [R0 + 0x080], 0x131689a6e58603a41f6ed431f3ee6cfae1bb165b9b8be3efc22a026c038ffec8
+    MOV [R0 + 0x0a0], 0x637b8d6297827692c03b134d1865bc2ba3bfc5500b9bf65f52060e8a2f92a198
+    MOV [R0 + 0x0c0], 0x0ef936b4777be6dcfc8436b6d98ef732f6a1b1e53dd3922d4572752d4fefe668
+    MOV [R0 + 0x0e0], 0x0cc15ddabbb3b5c432c01af2e7cd74e26b48b27118263e609ac386ee7b713ed8
+    MOV [R0 + 0x100], 0xb4e434af96dedfb6c40532d5cfba3906948bcfff8f50773045c08f5ea9557de7
+    MOV [R0 + 0x120], 0xca2315d618bda9765a146564806015f6c5cb071a48fac120225b764a4897b840
+    MOV [R0 + 0x140], 0xe228ed95404a0a6b64fd40d1c3f80d9d72600c3fe02179f291ca1881f0e25cce
+    MOV [R0 + 0x160], 0x0df2dbb09486ea49632f02a6240a5fdfd18e6d7ab94688e0c860d199087a390a
+    MOV [R0 + 0x180], 0x57a8c46efb7beb85cc0817ebfea3d55315f905c785012e4475f6e83e7031aae7
+    MOV [R0 + 0x1a0], 0x0fadee0780ee3570f2b6467445dae8a830a5a7ec201c884b402b8ae57e5a3611
+    MOV [R0 + 0x1c0], 0x9b6dbb98c927cbcec2390e6ad44d3171d1017b67ec21ec94e3da82fbbf0cffab
+    MOV [R0 + 0x1e0], 0x3b9fb7a3272eeb13966dd14e0b7783bdcca7ff24495f47892a894e38107f1f2c
+    MOV [R0 + 0x200], 0x59960672d8db19e68d5184cf8daf39b4465a4a423a7bafbe77199b3f6c8746c5
+    MOV [R0 + 0x220], 0x8afcd3f9ce7a43c3c1630634554d0020fdd059f593f04a75eae47f5e95e62d0f
+    MOV [R0 + 0x240], 0x3305158e7fa59ca19a3cd53b0762071f07c5917b19dc0536aeb5a20c41474c2e
+    MOV [R0 + 0x260], 0xf1f24903b40d588a4d06f364298537435e79ef3ac131da4f433bd03a5bb631c4
+    MOV [R0 + 0x280], 0x258655486ed1a8d1a09a1cd21060892c2cb931574ca8bb803a0137c9e81ffd74
+    MOV [R0 + 0x2a0], 0xaf53a05fe9b3156fb4284c402704003212d17fedb46f088cebf20006842dd77c
+    MOV [R0 + 0x2c0], 0x3e54adcdd43ee6ebb77f1420f86900cb5b466303793bf0244781fced15d5d52d
+    MOV [R0 + 0x2e0], 0x6edac7104ad1d00220a40a79363ffbd144867c8835f9e9eb3e7aa07542ff653f
+    MOV [R0 + 0x300], 0x23951005b3157cd6a792305dc94d07ae33d22349d752d65f6d914a43b44cd2e3
+    MOV [R0 + 0x320], 0x2da968166ef6e35b728349cdaa28a9afb74035ac9a51b9a14be9a5bd0468e0df
+    MOV [R0 + 0x340], 0x9708300c269d5ca17cddbc18fdcfdc4b3c0420365b9b21f2e4090b100c375195
+    MOV [R0 + 0x360], 0x12f04b8e8c7483cee185dcd6e7c3997a960ca0ab75e2be7c0deffcd7dc911eda
+    MOV [R0 + 0x380], 0xf975b2f632fc0875c182d862402576a6dc55d513b2eca90bcedfa710b84bebe3
+    MOV [R0 + 0x3a0], 0xd083f3e5900086a7b0ccf557eeaf7b0c0828f51f9566abe97883940e22179448
+    MOV [R0 + 0x3c0], 0x42016735eecc8a1486a4949d491dae662694eea25341f221bf760a27408a6307
+    MOV [R0 + 0x3e0], 0x8b11cf21eaa83b585df8fe99b30a9f19af5f6b1bf7822e2dc33d00f728a8d624
+    MOV [R0 + 0x400], 0xff02c23f0f1fcbbaa887de7e4f2648e51994be43020613b1fe77d9a0aee69437
+    MOV [R0 + 0x420], 0x3b275300d59b6b5108a393a6af28775838589da1b00d7654fce0ba20954122d0
+    MOV [R0 + 0x440], 0xa12a295b98b3ca04238b7bb6eaafdbf73650f4a0e5da5e7cf2b8b306cb086010
+    MOV [R0 + 0x460], 0x29170550f4a907969e2dfb6f0a5ee79c5d87c8e4345302f499bd3876955caf0d
+    MOV [R0 + 0x480], 0xc36a5918dccaa2bb52d33f22bab96c2df16229c6661ee1681853a4dc64e0fd8a
+    MOV [R0 + 0x4a0], 0x0f8fd565642a7d958fd75864c8adf901e2798c021c6a40ef0ab830dc22564ba7
+    MOV [R0 + 0x4c0], 0xedf38546d1278be0d2aa1267e2c7dc0cad4a57db52ca632a9b2fd816594d9343
+    MOV [R0 + 0x4e0], 0xa6533f26eadd17960f25cbba989151f9ad0044950bf525e10190c99e165684e9
+    MOV [R0 + 0x500], 0x6c24495d1f8af19d82dacee638d0141904dd3ba9e4503f0f876e2280962765a9
+    MOV [R0 + 0x520], 0x06cd6ed3ecf2488d04bd4fb346052a643355ba991351b39bb03a1b97f4a3cbc3
+    MOV [R0 + 0x540], 0x23d1fbb809ca14c391f6323452f559dfe746d91dc48af8a19cee5fdb120c0ba8
+    MOV [R0 + 0x560], 0x36a313b9a6c8f60be6237c487e06e99891f374e8661e8cfa1b8c43ac5abca387
+    MOV [R0 + 0x580], 0xa6b71ea564c923039b0d89d97857cd3f5cb6c2a9e0b10c76ebfb0a6b04318049
+    MOV [R0 + 0x5a0], 0xb313952f533f9fdaf509eb4c98b4bebe9f6746e35f6f9ebef3fd457a420c84f1
+    MOV [R0 + 0x5c0], 0x975716cb06773b90a1e6a2c30afe1be0c04b82d9c4c74b00befb8447434f1d1a
+    MOV [R0 + 0x5e0], 0x2dfc356232075e0162ec70c39f014d446c643618077c51c3378d1451204e617f
+    MOV [R0 + 0x600], 0xc581d16de401d4ccf2dae14fdcd11be988ee7ecebb73e9c41a1b4261d9197efb
+    MOV [R0 + 0x620], 0x596ad5d35d9d8deee39b1441ad273ef93e5badd4441ffd656c16cd92eff8dab0
+    MOV [R0 + 0x640], 0x89fb490c0daca45ffc873f53b79cbc15412768b7762d0c3b4ea542e43fa68f6d
+    MOV [R0 + 0x660], 0x731e9147ab6134a43979a020d33f720bd2d925f835464fc7ab377de92eabbfbe
+    MOV [R0 + 0x680], 0x3484e49d33408922d6581b8e0b801ac72305857c21e69fbd1260a8383f9e8827
+    MOV [R0 + 0x6a0], 0xdcd31d42d0c6ac65d9f77d202c3c86d033b6f3c519a624cef4712a126b4d366a
+    MOV [R0 + 0x6c0], 0x7e40a32f86824d663eb7efa38deb2ec6530b5cadd0837d3751fa8361a012099c
+    MOV [R0 + 0x6e0], 0xa07e02c7de061e4aa78d077cedce6de421d0617f03f262df9efccd725f45c8d1
+    MOV [R0 + 0x700], 0x1b81dd77a9de8569f0509db641f7caa49298e91aad86a771fb35558dced0124b
+    MOV [R0 + 0x720], 0x4792cf96ed0b517db4a1448b4304d20ad4aa471b948b77b0927ba71ee20d1525
+    MOV [R0 + 0x740], 0x94f6046401b4a278f45c408528d45d58d907647d0f17e4fc0e74301908e41498
+    MOV [R0 + 0x760], 0xbfd906252ee83f489fd805af8d77af7788475d3f7033d4702d84a34927a9b409
+    MOV [R0 + 0x780], 0xebc22b1c798c36b1b9b819df57f08d80df7e4ad70e98eac219913330a8d76e0b
+    MOV [R0 + 0x7a0], 0xa6657e47777c988c2bfc2f8d4ba506aaf0efd76663d6fa1d5c9c61d464869f55
+    MOV [R0 + 0x7c0], 0x305bcc958c4816c380067794c2c29074174ed18cf5b08bb19dd2ff0c07b3b90c
+    MOV [R0 + 0x7e0], 0x0e2b56324e71bb57069535a8a3b10568d44ab6d91ddb76075bbc13186a7998dd
+    MOV R0, WHIRLPOOL_C7
+    MOV [R0], 0xc5cadb2fe7f11710c667a512eb7f309110da78697b7af92efca16144b1b02d4f
+    MOV [R0 + 0x020], 0xfa09c73de1d02e88528a02d7a2ceade662ab79b3c4df1ca986ee9d954c798fb1
+    MOV [R0 + 0x040], 0x9d67420ecb2b74cc1f427e61958d9c76095c6c004476a7e6df36b65ff2304f9a
+    MOV [R0 + 0x060], 0x6952678045374cde1e0726e9d5238cdc2e37123d706881a69e62d33f478a51b1
+    MOV [R0 + 0x080], 0x6a335599208ab37a20c81fb221e7085ce09018eca610b57b6db93b12ed51e37e
+    MOV [R0 + 0x0a0], 0xafcd9a49192de5aaa3da95e47819532a45b36a78da413907940b8413d363b3dc
+    MOV [R0 + 0x0c0], 0xe5cccab11c5c5452cb43a1deab89663e18f880a0b5641a38d9606d8bdb23b80b
+    MOV [R0 + 0x0e0], 0x9ada1f3383bf3ce51552f1cd2f14696483964d2bf2dad942c4e853d86482154c
+    MOV [R0 + 0x100], 0x9d2650be69d6c5fdab716a5fa50bcc69c8cb7b12edc06e4d492a0c8f8159591b
+    MOV [R0 + 0x120], 0xba7cd57eee93cf0983e87c635a7fdcb2d57a7a007132b151169525bf9da663b3
+    MOV [R0 + 0x140], 0x99579a01d87610c29119ef5ff81fd4c17bcc7fb672127d70238d7dfd42824889
+    MOV [R0 + 0x160], 0xc5fa498f9f929b2a42368aee6a73b12829d504696bb3a3e03b13f4de27e1f48c
+    MOV [R0 + 0x180], 0x3c7a00c778254e744a4affcc76db46f9dd9ed02b054eba533f7e72c67733f90d
+    MOV [R0 + 0x1a0], 0x65ed99dcd5d14efb0c0f9d733c2bff34006c349da2a6689a5f8c570deb0c7b8b
+    MOV [R0 + 0x1c0], 0x2f57c022708c76ba27fd524205f8c20459d0d212b84f3f188993661ce610d2a5
+    MOV [R0 + 0x1e0], 0xcacdf4cef9b3f6f6ff6d1ba358fc7fa2d670328f501778c49d21fed67a6c760e
+    MOV [R0 + 0x200], 0x00bcdb9af80ee73615cfc04b151d194a35665a6bcd2f09a8ae47b0fb228406cd
+    MOV [R0 + 0x220], 0x4c2c7559420c2715a07301a2984a3754e9a78d08ecd230f99e47ae3f8a3669d3
+    MOV [R0 + 0x240], 0xbb09c0bd3306183e927b50d6ef1986654c0a1a3e9063eb927c0fc39dc36cc5ab
+    MOV [R0 + 0x260], 0xf630dff1ecf48c07b15ddca998f4b95ea7b6b4bfe8d6fb9c6f5fd20d0eec0037
+    MOV [R0 + 0x280], 0x17bec87b566f2eb3d9ad6b16419598bafdb8713f08cd718ac46d05e81c3cd6d7
+    MOV [R0 + 0x2a0], 0x112b26f767ccd0a6eb7c295f077e871315f61e11488db97b55d890e357cc55ea
+    MOV [R0 + 0x2c0], 0xd163e4c88a2ae17d5a24a40e30d5bc02ef732a1edaa9d6349a53c45dc70f0550
+    MOV [R0 + 0x2e0], 0xaf8615e68cff17f0dde6addd7cb30ad80dc8c5d96b4fa9f3449a3554021f0808
+    MOV [R0 + 0x300], 0x7ae5d4cc450bc523604ed3b8a1c4a66dbb71f9d06b0c374dfe5b27f8607324ea
+    MOV [R0 + 0x320], 0x9c40618d89e551af75463c193ff2f93a96320acde8142fc15baba9273480afb8
+    MOV [R0 + 0x340], 0x71878d0d1c25df5f430a4085b512186bd896ff1e95bc94813e98abd2ef6ddede
+    MOV [R0 + 0x360], 0x62fd7bbd69aede65c1e20f98ea8d7e4c894b624f49b3a4d8b635483cc92042ac
+    MOV [R0 + 0x380], 0xebb4e30d9b657d6fb5795729cce10fdd1d8cb7cc2cf190a940f3d09decdec5cf
+    MOV [R0 + 0x3a0], 0x7de71b851c07b2a8004ece08b9ab3385b8f55256942bc47ecb03d99b5d2f5d20
+    MOV [R0 + 0x3c0], 0xa007e08f45a3ff6f9cbaa954c05b022cdcefa1fcb8aa6e9f6143ef9dc8b80768
+    MOV [R0 + 0x3e0], 0xb177ad249091730fd748a500f6d37f2660a5c43b78773d6b20e8bd4e2289efb0
+    MOV [R0 + 0x400], 0x9387860d43ce728255ad20fb423c5ec8aa225c3b2fc2d1350238f1ffe608218e
+    MOV [R0 + 0x420], 0x81fd37f48dd6504146e885ed0af06eee244299fee555053695d71273971e3c85
+    MOV [R0 + 0x440], 0x40a0f751d7743108bd44daa25a733b6414111c6f3805f597f7b49b8bd26e8aa7
+    MOV [R0 + 0x460], 0x57da9f69bcf599ce7e76717181592bdf22367a997acb20b38c545aeff0b5b5e0
+    MOV [R0 + 0x480], 0xf5b686aeedaeaac7597153a6858c9dd60ae568a7e222a737862931d0ad99b210
+    MOV [R0 + 0x4a0], 0x91ef3799a459c83ab401a66c06b7dcb696ba19cc35419082ba7e4d8295dce62f
+    MOV [R0 + 0x4c0], 0x1819e8ae3cdca8f584b8427edd4872ae84f4ee008d1691726c6e0a454cada4ab
+    MOV [R0 + 0x4e0], 0x7cd0935419805ff37f9bd3d2f7a29af7d730c49819fff3d71fcffbe18b64e091
+    MOV [R0 + 0x500], 0xbd03691d1916de5a8c73f6843195274f117de6ef757058bff74701b5793f4056
+    MOV [R0 + 0x520], 0xda0a88d989807b08e9588e398ece930a7042b409434c09993b0c1358cd7540e4
+    MOV [R0 + 0x540], 0xf399eee79a3b9032d3cdf905e22995092f43aa574851f5124cc2b460d7cb4233
+    MOV [R0 + 0x560], 0xc1f08a45508c9767b8b5030024deecdd27b80f46668b90090b1e0b9cac047a35
+    MOV [R0 + 0x580], 0xd1354d809a148a3ff59ea6a5937ef75393b5c9aa3223cd5025f7c2add5dd5021
+    MOV [R0 + 0x5a0], 0xc67f13faf7df874193a2b2975741c126f4eab7e05611a648579d03df2cebe1af
+    MOV [R0 + 0x5c0], 0xa8e7bf8ecce05015e2d483d47157c45e98fea0d22479167875d6cd9c99169ee3
+    MOV [R0 + 0x5e0], 0xb63f89810a32c8faf82c888b9c92e2c48de4270ac966bd792f5c6f442f8f730c
+    MOV [R0 + 0x600], 0x4f42faf83dd75c4b109bb9ae915892774220cd00a71509add3ea49c012ad0929
+    MOV [R0 + 0x620], 0xfa14a8c49736ac6aedc183a668149725f9b51f6e72680f7ceaf0f4615a64fbcc
+    MOV [R0 + 0x640], 0x248865e3a5fe6c11b5db81f24dce76120b557a330017726db3e55d530287790a
+    MOV [R0 + 0x660], 0x6beeeb225ee069124dff1f18c5c5e200b740f16ae55f28cbe8b3a5441eda97b1
+    MOV [R0 + 0x680], 0x72c833f67cb506e43fd1f8968fd3d1961f0a1e39ca3a82c1b143e774b341ce6a
+    MOV [R0 + 0x6a0], 0x0f440fac88c7e3ec50ade4121cf27625a29c9611fbddca7930159834cb97a509
+    MOV [R0 + 0x6c0], 0x60b3df424cf89ee8fc716efb3f41bb96cb0c57e3aaf635c987708a6a0c5b5282
+    MOV [R0 + 0x6e0], 0xc36657d31f945fc91cbd6dc7f1fd0d14eb494af9cbf8b3a70f3948e1612bd7db
+    MOV [R0 + 0x700], 0x098d0982b38af69c02b2e63031c2e9e5135a09e64a79f7161bbdabaf2c11ace0
+    MOV [R0 + 0x720], 0x7309038d48bf755a8663b81eb22f81baacecc231d52491c041b3b9a25118b3cf
+    MOV [R0 + 0x740], 0x24a47d113608cf543fcc874b0938b62fe4397945081d17963de3444401f4de11
+    MOV [R0 + 0x760], 0x4e600097d79a8a9c120d6dd60286a9d863d4ce7d05fc51c0ac5bf0ca036b56e9
+    MOV [R0 + 0x780], 0x7a595f99e666af55132bf13d6267e3f56aa5da459c290d6425b07a984c543266
+    MOV [R0 + 0x7a0], 0x5abf936049733c6d992d9ac59953a855a118097abbe566827479074de22334a5
+    MOV [R0 + 0x7c0], 0xb4c6334fec41c263cb753a0d5e72e8cab867180f035b8e687036ac86946e77c5
+    MOV [R0 + 0x7e0], 0xd4248c34b2312ee511e0dc4a765e16717aba77d24ec70cc1b31a1132252d253c
+    RET 0
+
+
+;;;
+; Store the round constants rc[R+1] in virtual memory
+;;;
+<FUN_WhirlPool_StoreRoundConstants>
+    MOV R0, WHIRLPOOL_RC
+    MOV [R0], 0xccc9f7da81efe440
+    MOV [R0 + 0x08], 0x3977054775fed69e
+    MOV [R0 + 0x10], 0x3601faf259d920ab
+    MOV [R0 + 0x18], 0xeedab45df76fb6c8
+    MOV [R0 + 0x20], 0x72c5b80f9d6a797c
+    MOV [R0 + 0x28], 0xcb9fed19a0435c6b
+    MOV [R0 + 0x30], 0xcd824fcb80959f68
+    MOV [R0 + 0x38], 0x629104686ca14796
+    MOV [R0 + 0x40], 0x072eb468ec2ce98f
+    MOV [R0 + 0x48], 0x1238f74cc8e506bd
+    MOV [R0 + 0x50], 0xe0d3ad7511208934
+    MOV [R0 + 0x58], 0xc9cb3c0801d05f1f
+    MOV [R0 + 0x60], 0xb10000b8fc7b3c1e
+    MOV [R0 + 0x68], 0x783a99795ac61dde
+    MOV [R0 + 0x70], 0x67548a9e89c3db4e
+    MOV [R0 + 0x78], 0x638562cb010392bb
+    MOV [R0 + 0x80], 0x234883a6a16835c1
+    MOV [R0 + 0x88], 0x1640dcdc1e40ad2a
+    MOV [R0 + 0x90], 0x61d9cd53e465c918
+    MOV [R0 + 0x98], 0x1d54054d205ddb7e
+    MOV [R0 + 0xa0], 0xa2b73d690daa77e5
+    MOV [R0 + 0xa8], 0x3971c1873406747f
+    MOV [R0 + 0xb0], 0x684301709598b137
+    MOV [R0 + 0xb8], 0x857f889210440eae
+    RET 0
